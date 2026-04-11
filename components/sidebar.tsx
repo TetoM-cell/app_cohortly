@@ -170,7 +170,7 @@ const CohortItem = ({ id, name, isActive, onDelete, href }: CohortItemProps & { 
     </div>
 );
 
-export function Sidebar() {
+function SidebarContent() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -627,4 +627,12 @@ export function Sidebar() {
             router.push("/login");
         }
     }
+}
+
+export function Sidebar() {
+    return (
+        <React.Suspense fallback={<div className="w-[240px] h-full bg-gray-50/50 border-r border-gray-200" />}>
+            <SidebarContent />
+        </React.Suspense>
+    );
 }
