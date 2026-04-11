@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { ScalingWrapper } from "@/components/scaling-wrapper";
 
@@ -8,7 +9,9 @@ export default function DashboardLayout({
 }) {
     return (
         <div className="flex h-screen overflow-hidden bg-white">
-            <Sidebar />
+            <Suspense fallback={<div className="w-[240px] h-full bg-gray-50/50 border-r border-gray-200" />}>
+                <Sidebar />
+            </Suspense>
             <ScalingWrapper className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
                 {children}
             </ScalingWrapper>
