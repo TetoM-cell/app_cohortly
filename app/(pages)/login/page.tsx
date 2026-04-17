@@ -1,19 +1,20 @@
 'use client';
 
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { ScalingWrapper } from '@/components/scaling-wrapper';
 
-export default function LoginPage() {
+function LoginForm() {
     const [currentTextIndex, setCurrentTextIndex] = useState(0);
     const [isVisible, setIsVisible] = useState(true);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const texts = [
         { regular: "Your programs are exactly where ", emphasized: "you left them" },
@@ -21,6 +22,13 @@ export default function LoginPage() {
         { regular: "Pick up right where you paused and get today's cohort ", emphasized: "one step closer to launch." },
         { regular: "Let's keep building the future, ", emphasized: "one great application at a time." }
     ];
+
+    useEffect(() => {
+        const error = searchParams.get('error');
+        if (error) {
+            toast.error(decodeURIComponent(error));
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -148,5 +156,13 @@ export default function LoginPage() {
                 </div>
             </div>
         </ScalingWrapper>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>}>
+            <LoginForm />
+        </Suspense>
     );
 }
