@@ -22,7 +22,11 @@ import {
     UserPlus,
     XCircle,
     Download,
-    AlertTriangle
+    AlertTriangle,
+    ListChecks,
+    Plus,
+    EyeOff,
+    Link2
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -64,7 +68,9 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
         publicStatus: true,
         customSlug: "",
         seoTitle: "",
-        seoDescription: ""
+        seoDescription: "",
+        openDate: "",
+        deadline: ""
     });
 
     // Automation & Limits State
@@ -75,16 +81,28 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
         targetLimit: 50
     });
 
+    // Blind Review Mode State
+    const [blindReview, setBlindReview] = useState(false);
+
+    // Rubrics State
+    const [rubrics, setRubrics] = useState<any[]>([]);
+    const [deletedRubricIds, setDeletedRubricIds] = useState<string[]>([]);
+
     // Initialize state from program prop when sheet opens
     useEffect(() => {
         if (open && program) {
             setReviewers(program.reviewers || []);
+            setRubrics(program.rubric ? JSON.parse(JSON.stringify(program.rubric)) : []);
+            setDeletedRubricIds([]);
+            setBlindReview(program.blind_review === true);
             // Here you'd map other DB fields if they existed, using defaults for now
             setLaunchSettings({
                 publicStatus: program.is_public !== false, // Default true if undefined
                 customSlug: program.slug || (program.name || "new-program").toLowerCase().replace(/[^a-z0-9]+/g, '-'),
                 seoTitle: program.name || "",
-                seoDescription: "Apply now for our upcoming program."
+                seoDescription: "Apply now for our upcoming program.",
+                openDate: program.open_date ? new Date(program.open_date).toISOString().slice(0, 16) : "",
+                deadline: program.deadline ? new Date(program.deadline).toISOString().slice(0, 16) : ""
             });
             // Notifications placeholder
             setNotifications({
@@ -96,7 +114,7 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
             const hasAutomation = rules.some((r: any) => r.action === 'shortlist' || r.action === 'reject');
             const shortlist = rules.find((r: any) => r.action === 'shortlist')?.value || 80;
             const reject = rules.find((r: any) => r.action === 'reject')?.value || 50;
-            const target = rules.find((r: any) => r.action === 'target')?.value || 50;
+            const target = rules.find((r: any) => r.target === 'limit')?.value || 50;
 
             setAutomation({
                 enabled: hasAutomation,
@@ -151,9 +169,11 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
             const { error: progUpdateError } = await supabase
                 .from('programs')
                 .update({
-                    reviewers: allReviewers,
                     is_public: launchSettings.publicStatus,
-                    slug: launchSettings.customSlug
+                    slug: launchSettings.customSlug,
+                    blind_review: blindReview,
+                    open_date: launchSettings.openDate || null,
+                    deadline: launchSettings.deadline || null
                 })
                 .eq('id', program.id);
 
@@ -166,11 +186,38 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
                 newRules.push({ program_id: program.id, target: 'overall_ai_score', operator: '>=', value: automation.shortlistThreshold, action: 'shortlist' });
                 newRules.push({ program_id: program.id, target: 'overall_ai_score', operator: '<', value: automation.rejectThreshold, action: 'reject' });
             }
-            newRules.push({ program_id: program.id, target: 'shortlist', operator: 'limit', value: automation.targetLimit, action: 'target' });
+            newRules.push({ program_id: program.id, target: 'limit', operator: '=', value: automation.targetLimit, action: 'flag' });
 
             if (newRules.length > 0) {
                 const { error: rulesError } = await supabase.from('threshold_rules').insert(newRules);
                 if (rulesError) throw rulesError;
+            }
+
+            // 4. Save Rubrics
+            if (deletedRubricIds.length > 0) {
+                await supabase.from('rubrics').delete().in('id', deletedRubricIds);
+            }
+
+            const validRubrics = rubrics.filter(r => r.name.trim() !== "");
+            const rubricsToUpdate = validRubrics.filter(r => r.id);
+            const rubricsToInsert = validRubrics.filter(r => !r.id).map(r => ({
+                program_id: program.id,
+                name: r.name,
+                description: r.description,
+                weight: r.weight
+            }));
+
+            for (const r of rubricsToUpdate) {
+                const { error: updateErr } = await supabase.from('rubrics').update({
+                    name: r.name,
+                    description: r.description,
+                    weight: r.weight
+                }).eq('id', r.id);
+                if (updateErr) console.error("Error updating rubric:", updateErr);
+            }
+            if (rubricsToInsert.length > 0) {
+                const { error: insertErr } = await supabase.from('rubrics').insert(rubricsToInsert);
+                if (insertErr) console.error("Error inserting rubrics:", insertErr);
             }
 
             toast.success(pendingInvites.length > 0 ? "Settings saved and invitations sent." : "Settings saved successfully.");
@@ -384,7 +431,118 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
                         </div>
                     </div>
 
-                    {/* 2. Notifications */}
+                    {/* 2. Guest Portal Link */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                <div>
+                                    <Link2 className="w-5 h-5 text-emerald-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Guest Reviewer Portal</h3>
+                                    <p className="text-sm text-gray-500 mt-0.5">Share this link with external judges to evaluate without an account.</p>
+                                </div>
+                            </div>
+                            <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="h-8 gap-2 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800"
+                                onClick={() => {
+                                    const url = `${window.location.origin}/review/${program.id}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast.success("Guest Portal link copied to clipboard!");
+                                }}
+                            >
+                                <Copy className="w-3.5 h-3.5" />
+                                Copy Link
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* 3. Rubrics Management */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div>
+                                <ListChecks className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">Rubrics & Scoring</h3>
+                                <p className="text-sm text-gray-500">Define the criteria for evaluating applications.</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            {rubrics.map((rubric, index) => (
+                                <div key={rubric.id || `new-${index}`} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3 relative group">
+                                    <button
+                                        onClick={() => {
+                                            if (rubric.id) {
+                                                setDeletedRubricIds([...deletedRubricIds, rubric.id]);
+                                            }
+                                            setRubrics(rubrics.filter((_, i) => i !== index));
+                                        }}
+                                        className="absolute top-4 right-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                    <div className="grid grid-cols-[1fr_80px] gap-3 pr-6">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Criterion Name</label>
+                                            <Input
+                                                value={rubric.name}
+                                                onChange={(e) => {
+                                                    const newRubrics = [...rubrics];
+                                                    newRubrics[index].name = e.target.value;
+                                                    setRubrics(newRubrics);
+                                                }}
+                                                placeholder="e.g. Traction"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Weight</label>
+                                            <Input
+                                                type="number"
+                                                min="1"
+                                                value={rubric.weight || 0}
+                                                onChange={(e) => {
+                                                    const newRubrics = [...rubrics];
+                                                    newRubrics[index].weight = parseInt(e.target.value) || 0;
+                                                    setRubrics(newRubrics);
+                                                }}
+                                                className="bg-white text-center"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Description (Optional)</label>
+                                        <Input
+                                            value={rubric.description || ""}
+                                            onChange={(e) => {
+                                                const newRubrics = [...rubrics];
+                                                newRubrics[index].description = e.target.value;
+                                                setRubrics(newRubrics);
+                                            }}
+                                            placeholder="What does this score mean?"
+                                            className="bg-white"
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                            <Button
+                                variant="outline"
+                                className="w-full border-dashed border-2 py-6 text-gray-500 hover:text-black bg-gray-50/50 hover:bg-gray-100"
+                                onClick={() => {
+                                    setRubrics([...rubrics, { name: "", description: "", weight: 10 }]);
+                                }}
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add Criterion
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* 3. Notifications */}
                     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
                             <div>
@@ -534,6 +692,24 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
                                 }}
                             />
                         </div>
+
+                        {/* Blind Review Mode */}
+                        <div className="mt-4 pt-4 border-t border-gray-100">
+                            <div className="flex items-center justify-between p-4 bg-violet-50 rounded-xl border border-violet-100">
+                                <div className="flex items-center gap-3">
+                                    <EyeOff className="w-4 h-4 text-violet-600 shrink-0" />
+                                    <div>
+                                        <p className="font-bold text-gray-900 text-sm">Blind Review Mode</p>
+                                        <p className="text-xs text-gray-500 mt-0.5">Hide AI scores from reviewers until they submit their own evaluation. Prevents anchoring bias.</p>
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={blindReview}
+                                    onCheckedChange={setBlindReview}
+                                    className="bg-gray-200 data-[state=checked]:bg-violet-600 shrink-0 ml-4"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     {/* 4. Launch Settings */}
@@ -577,6 +753,31 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
                                         className="h-11 rounded-l-none rounded-r-lg border-gray-200 focus-visible:ring-1 focus-visible:ring-black text-[14px] font-semibold"
                                         value={launchSettings.customSlug}
                                         onChange={(e) => setLaunchSettings({ ...launchSettings, customSlug: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                    <label className="text-[13px] font-bold uppercase tracking-wider text-gray-400">
+                                        Applications Open
+                                    </label>
+                                    <Input
+                                        type="datetime-local"
+                                        className="h-11 rounded-lg border-gray-200 focus-visible:ring-1 focus-visible:ring-black text-[14px]"
+                                        value={launchSettings.openDate}
+                                        onChange={(e) => setLaunchSettings({ ...launchSettings, openDate: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-3">
+                                    <label className="text-[13px] font-bold uppercase tracking-wider text-gray-400">
+                                        Application Deadline
+                                    </label>
+                                    <Input
+                                        type="datetime-local"
+                                        className="h-11 rounded-lg border-gray-200 focus-visible:ring-1 focus-visible:ring-black text-[14px]"
+                                        value={launchSettings.deadline}
+                                        onChange={(e) => setLaunchSettings({ ...launchSettings, deadline: e.target.value })}
                                     />
                                 </div>
                             </div>

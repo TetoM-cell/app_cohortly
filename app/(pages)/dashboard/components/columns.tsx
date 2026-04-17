@@ -166,7 +166,7 @@ const ApplicantCell = ({ row, table }: { row: any, table: any }) => {
                 "font-medium text-sm cursor-pointer hover:underline decoration-gray-300 underline-offset-4 pl-1 transition-colors",
                 hasComment ? "text-blue-600" : "text-gray-900"
             )}
-            onClick={() => meta.setActiveApplicantId(row.id)}
+            onClick={() => meta.setActiveApplicantId(row.original.id)}
         >
             {name}
         </div>

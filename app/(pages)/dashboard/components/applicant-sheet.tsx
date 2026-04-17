@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { supabase } from "@/lib/supabase/client"
 import {
     Sheet,
     SheetContent,
@@ -30,6 +31,17 @@ import {
     ExternalLink,
     Maximize2,
     Download,
+    Eye,
+    EyeOff,
+    Lock,
+    Activity,
+    Hash,
+    Plus,
+    Clock,
+    History,
+    Building2,
+    Calendar,
+    X
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { MentionDropdown, Reviewer } from "@/components/ui/mention-dropdown"
@@ -37,6 +49,7 @@ import {
     Application,
     Criterion,
     getStatusColor,
+    getScoreColor,
     getStatusIcon,
     getStatusDotColor,
     Comment
@@ -78,20 +91,65 @@ export function ApplicantSheet({
     const [showMentionDropdown, setShowMentionDropdown] = useState(false)
     const [mentionSearch, setMentionSearch] = useState("")
     const [cursorPosition, setCursorPosition] = useState(0)
+    const [scoresRevealed, setScoresRevealed] = useState(false)
+    const [logs, setLogs] = useState<any[]>([])
+    const [loadingLogs, setLoadingLogs] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
+    const commentsSectionRef = useRef<HTMLDivElement>(null)
+
+    const fetchLogs = useCallback(async () => {
+        if (!applicant?.id) return;
+        setLoadingLogs(true);
+        const { data, error } = await supabase
+            .from('application_logs')
+            .select('*')
+            .eq('application_id', applicant.id)
+            .order('created_at', { ascending: false });
+        
+        if (!error && data) {
+            setLogs(data);
+        }
+        setLoadingLogs(false);
+    }, [applicant?.id]);
 
     // Sync state when applicant changes
     useEffect(() => {
+        if (!applicant?.id) return
+
         setActiveField(null)
         setCommentText("")
         setShowMentionDropdown(false)
-    }, [applicant?.id])
+        setScoresRevealed(false)
+        fetchLogs()
+
+        // Real-time logs
+        const logChannel = supabase
+            .channel(`logs-${applicant.id}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'application_logs', filter: `application_id=eq.${applicant.id}` },
+                () => fetchLogs()
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(logChannel);
+        };
+    }, [applicant?.id, fetchLogs])
+
+    // Auto-scroll to comments when a field is selected
+    useEffect(() => {
+        if (activeField && commentsSectionRef.current) {
+            commentsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+    }, [activeField])
 
     if (!applicant) return null
 
     const name = applicant.applicantName || 'Anonymous'
     const reviewers: Reviewer[] = tableMeta?.reviewers || []
     const userProfile = tableMeta?.currentUserProfile
+    const isBlindMode = tableMeta?.blindReview === true && !scoresRevealed
 
     const properties = [
         { id: "companyName", label: "Company", value: applicant.companyName },
@@ -226,62 +284,184 @@ export function ApplicantSheet({
                         </div>
                     </div>
 
-                    <div className="space-y-1 mb-12">
-                        {properties.map((prop) => (
-                            <div
-                                key={prop.id}
-                                className={cn(
-                                    "flex items-center group min-h-[32px] py-1 px-2 -mx-2 rounded-md transition-colors cursor-pointer",
-                                    activeField === prop.id ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-gray-50"
-                                )}
-                                onClick={() => setActiveField(prop.id === activeField ? null : prop.id)}
-                            >
-                                <div className="flex items-center gap-2 w-32 shrink-0">
-                                    <span className="text-sm text-gray-500">{prop.label}</span>
-                                    {(applicant.comments?.[prop.id]?.length ?? 0) > 0 && (
-                                        <MessageSquare className="w-3 h-3 text-blue-500 fill-blue-100" />
-                                    )}
+                    {/* HIGH-IMPACT METRICS HEADER */}
+                    <div className="grid grid-cols-12 gap-4 mb-8">
+                        {/* Overall Score Card */}
+                        <div className="col-span-12 md:col-span-5 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <Activity className="w-16 h-16 text-blue-600" />
+                            </div>
+                            
+                            {isBlindMode && (
+                                <div className="absolute inset-0 z-20 bg-white/60 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center transition-all group-hover:bg-white/40">
+                                    <Lock className="w-6 h-6 text-gray-400 mb-2" />
+                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Blind Review Active</p>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="h-8 rounded-full px-4 text-[11px] font-bold border-gray-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm"
+                                        onClick={() => setScoresRevealed(true)}
+                                    >
+                                        <Eye className="w-3.5 h-3.5 mr-2" />
+                                        Reveal Scores
+                                    </Button>
                                 </div>
-                                <div className="flex-1 flex justify-end">
-                                    {prop.isStatus ? (
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Badge
-                                                    variant="secondary"
-                                                    className={cn(
-                                                        "px-2.5 py-0.5 rounded-sm text-xs font-normal shadow-none inline-flex items-center cursor-pointer transition-opacity hover:opacity-80",
-                                                        getStatusColor(prop.value as string)
-                                                    )}
-                                                >
-                                                    {getStatusIcon(prop.value as string)}
-                                                    {prop.value}
-                                                </Badge>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-40">
-                                                {["New", "Reviewing", "Shortlist", "Interview", "Accepted", "Rejected"].map((s) => (
-                                                    <DropdownMenuItem
-                                                        key={s}
-                                                        className={cn(
-                                                            "flex items-center gap-2 cursor-pointer",
-                                                            prop.value === s && "bg-gray-50"
-                                                        )}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            tableMeta?.onStatusChange?.(applicant.id, s)
-                                                        }}
-                                                    >
-                                                        <div className={cn("w-2 h-2 rounded-full", getStatusDotColor(s))} />
-                                                        {s}
-                                                    </DropdownMenuItem>
-                                                ))}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    ) : (
-                                        <span className="text-sm text-gray-900 font-medium">{prop.value}</span>
-                                    )}
+                            )}
+
+                            <div className="relative mb-3">
+                                {/* Simple CSS Ring */}
+                                <div className="w-24 h-24 rounded-full border-4 border-gray-50 flex items-center justify-center relative">
+                                    <div 
+                                        className={cn(
+                                            "absolute inset-[-4px] rounded-full border-4 border-transparent transition-all duration-1000",
+                                            isBlindMode ? "border-gray-200" : 
+                                            applicant.overallScore >= 76 ? "border-t-green-500 border-r-green-500" : 
+                                            applicant.overallScore >= 51 ? "border-t-amber-500 border-r-amber-500" : "border-t-red-500 border-r-red-500"
+                                        )}
+                                        style={{ transform: `rotate(${isBlindMode ? 0 : (applicant.overallScore / 100) * 360}deg)` }}
+                                    />
+                                    <div className="text-center">
+                                        <div className={cn("text-3xl font-black tracking-tighter", 
+                                            isBlindMode ? "text-gray-300" :
+                                            applicant.overallScore >= 76 ? "text-green-600" : 
+                                            applicant.overallScore >= 51 ? "text-amber-600" : "text-red-600"
+                                        )}>
+                                            {isBlindMode ? "--" : applicant.overallScore}
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Score</div>
+                                    </div>
                                 </div>
                             </div>
-                        ))}
+
+                            <div className="text-center">
+                                <h3 className="text-sm font-bold text-gray-900 mb-1">AI Recommendation</h3>
+                                <Badge className={cn("rounded-full px-3 py-0.5 border-0 font-bold text-[10px] uppercase tracking-widest", isBlindMode ? "bg-gray-100 text-gray-400" : getScoreColor(applicant.overallScore))}>
+                                    {isBlindMode ? "Hidden" : applicant.overallScore >= 76 ? "Strong Fit" : applicant.overallScore >= 51 ? "Potential Match" : "Low Alignment"}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        {/* Rubric Breakdown Grid */}
+                        <div className="col-span-12 md:col-span-7 grid grid-cols-2 gap-3">
+                            {rubric.map((c) => {
+                                const score = applicant.scores?.[c.id] || 0;
+                                const isActive = activeField === c.id;
+                                const commentCount = applicant.comments?.[c.id]?.length || 0;
+                                
+                                return (
+                                    <div 
+                                        key={c.id} 
+                                        className={cn(
+                                            "rounded-xl p-3 border transition-all cursor-pointer group/card relative",
+                                            isActive 
+                                                ? "bg-blue-50/50 border-blue-200 shadow-sm" 
+                                                : "bg-gray-50/50 border-gray-100/50 hover:border-gray-200"
+                                        )}
+                                        onClick={() => setActiveField(isActive ? null : c.id)}
+                                    >
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <span className={cn(
+                                                    "text-[11px] font-bold uppercase tracking-tight truncate",
+                                                    isActive ? "text-blue-600" : "text-gray-500"
+                                                )}>
+                                                    {c.name}
+                                                </span>
+                                                {commentCount > 0 && (
+                                                    <div className="flex items-center gap-0.5 text-blue-500">
+                                                        <MessageSquare className="w-2.5 h-2.5 fill-current" />
+                                                        <span className="text-[10px] font-bold">{commentCount}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <span className={cn("text-xs font-black", 
+                                                score >= 76 ? "text-green-600" : score >= 51 ? "text-amber-600" : "text-red-600"
+                                            )}>
+                                                {isBlindMode ? "--" : score}
+                                            </span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-gray-200/50 rounded-full overflow-hidden">
+                                            <div 
+                                                className={cn("h-full rounded-full transition-all duration-700", 
+                                                    score >= 76 ? "bg-green-500" : score >= 51 ? "bg-amber-500" : "bg-red-500"
+                                                )}
+                                                style={{ width: isBlindMode ? '0%' : `${score}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            
+                            {/* Status Card (Always present) */}
+                            <div 
+                                className={cn(
+                                    "col-span-2 rounded-xl p-3 flex items-center justify-between border transition-all cursor-pointer",
+                                    activeField === 'status' 
+                                        ? "bg-blue-100/50 border-blue-300" 
+                                        : "bg-blue-50/30 border-blue-100/50"
+                                )}
+                                onClick={() => setActiveField(activeField === 'status' ? null : 'status')}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                                        {getStatusIcon(applicant.status)}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Current Status</div>
+                                            {(applicant.comments?.['status']?.length || 0) > 0 && (
+                                                <div className="flex items-center gap-0.5 text-blue-500">
+                                                    <MessageSquare className="w-2.5 h-2.5 fill-current" />
+                                                    <span className="text-[10px] font-bold">{applicant.comments?.['status']?.length}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="text-sm font-bold text-blue-900">{applicant.status}</div>
+                                    </div>
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-8 text-[11px] font-bold text-blue-600 hover:bg-blue-100 hover:text-blue-700">
+                                            Change Status
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-40">
+                                        {["New", "Reviewing", "Shortlist", "Interview", "Accepted", "Rejected"].map((s) => (
+                                            <DropdownMenuItem
+                                                key={s}
+                                                className="flex items-center gap-2 cursor-pointer"
+                                                onClick={() => tableMeta?.onStatusChange?.(applicant.id, s)}
+                                            >
+                                                <div className={cn("w-2 h-2 rounded-full", getStatusDotColor(s))} />
+                                                {s}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* APPLICANT KEY DETAILS */}
+                    <div className="grid grid-cols-2 gap-6 px-1 mb-12 py-6 border-y border-gray-50/50">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 shadow-sm">
+                                <Building2 className="w-4 h-4 text-gray-400" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] uppercase font-black text-gray-400 tracking-widest leading-tight mb-1">Company</span>
+                                <span className="text-sm font-bold text-gray-900 leading-tight">{applicant.companyName}</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 shadow-sm">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] uppercase font-black text-gray-400 tracking-widest leading-tight mb-1">Submitted</span>
+                                <span className="text-sm font-bold text-gray-700 leading-tight">{new Date(applicant.submittedDate).toLocaleDateString()}</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* AI Insights Section */}
@@ -290,15 +470,41 @@ export function ApplicantSheet({
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <Sparkles className="w-12 h-12 text-blue-600" />
                             </div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
-                                    <Sparkles className="w-4 h-4 text-white" />
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
+                                        <Sparkles className="w-4 h-4 text-white" />
+                                    </div>
+                                    <h3 className="text-sm font-bold text-blue-900 tracking-tight">AI Reasoning Summary</h3>
                                 </div>
-                                <h3 className="text-sm font-bold text-blue-900 tracking-tight">AI Reasoning Summary</h3>
+                                {isBlindMode && (
+                                    <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest border-blue-200 text-blue-600 bg-white">
+                                        Blind Mode Active
+                                    </Badge>
+                                )}
                             </div>
-                            <p className="text-sm text-blue-800/80 leading-relaxed font-medium">
-                                {applicant.aiExplanation}
-                            </p>
+                            {isBlindMode ? (
+                                <div className="relative">
+                                    <p className="text-sm text-blue-800/20 leading-relaxed font-medium blur-sm select-none">
+                                        {applicant.aiExplanation}
+                                    </p>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                                        <div className="p-2 bg-white rounded-full shadow-sm border border-blue-100">
+                                            <Lock className="w-4 h-4 text-blue-400" />
+                                        </div>
+                                        <button 
+                                            onClick={() => setScoresRevealed(true)}
+                                            className="text-[11px] font-black text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-widest"
+                                        >
+                                            Click to reveal evaluation
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-blue-800/80 leading-relaxed font-medium">
+                                    {applicant.aiExplanation}
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>
@@ -385,10 +591,24 @@ export function ApplicantSheet({
 
                 <Separator className="my-1 bg-gray-100" />
 
-                <div className="bg-gray-50/50 min-h-[400px]">
+                <div ref={commentsSectionRef} className="bg-gray-50/50 min-h-[400px]">
                     <div className="sticky top-0 z-20 bg-gray-50/50 p-8 sm:p-12 pt-8 pb-4 border-b border-gray-100/50">
                         <h3 className="text-sm font-semibold text-gray-400 mb-6 flex items-center gap-2 uppercase tracking-tight">
-                            Comments {activeField && <span className="text-gray-400 font-normal">on {properties.find(p => p.id === activeField)?.label}</span>}
+                            Comments 
+                            {activeField && (
+                                <div className="flex items-center gap-2 ml-2 lowercase font-bold">
+                                    <span className="text-blue-500 tracking-tight flex items-center gap-1.5 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                        on {properties.find(p => p.id === activeField)?.label || activeField}
+                                        <button 
+                                            onClick={() => setActiveField(null)}
+                                            className="p-0.5 hover:bg-blue-100 rounded transition-colors"
+                                            title="Return to general comments"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                </div>
+                            )}
                         </h3>
 
                         <div className="flex gap-4 items-center">
@@ -489,6 +709,77 @@ export function ApplicantSheet({
                                                         return part;
                                                     });
                                                 })()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ACTIVITY FEED SECTION */}
+                    <div className="px-8 sm:px-12 py-12 border-t border-gray-50 bg-gray-50/20">
+                        <div className="flex items-center justify-between mb-8">
+                            <h3 className="text-sm font-bold text-gray-400 flex items-center gap-2 uppercase tracking-widest">
+                                <History className="w-4 h-4" />
+                                Activity Feed
+                            </h3>
+                            <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest bg-white px-2 py-0.5 rounded border border-gray-100">
+                                {logs.length} Events
+                            </span>
+                        </div>
+
+                        <div className="relative space-y-6">
+                            {/* Vertical Timeline Line */}
+                            {logs.length > 1 && (
+                                <div className="absolute left-[11px] top-2 bottom-2 w-px bg-gray-200/60" />
+                            )}
+
+                            {logs.length === 0 ? (
+                                <div className="py-8 text-center bg-white rounded-xl border border-dashed border-gray-200">
+                                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-2 text-gray-300">
+                                        <Clock className="w-5 h-5" />
+                                    </div>
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No activity yet</p>
+                                </div>
+                            ) : (
+                                logs.map((log, i) => (
+                                    <div key={log.id} className="relative pl-8 group">
+                                        {/* Node */}
+                                        <div className={cn(
+                                            "absolute left-0 top-1.5 w-[22px] h-[22px] rounded-full border-2 border-white shadow-sm flex items-center justify-center z-10 transition-transform group-hover:scale-110",
+                                            log.event_type === 'status_change' ? "bg-blue-500" : 
+                                            log.event_type === 'score_update' ? "bg-amber-500" : "bg-purple-500"
+                                        )}>
+                                            {log.event_type === 'status_change' ? <ArrowUp className="w-2.5 h-2.5 text-white" /> : 
+                                             log.event_type === 'score_update' ? <Activity className="w-2.5 h-2.5 text-white" /> : 
+                                             <Sparkles className="w-2.5 h-2.5 text-white" />}
+                                        </div>
+
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center justify-between gap-4 mb-1">
+                                                <span className="text-sm font-bold text-gray-700 leading-tight">
+                                                    {log.message}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap uppercase tracking-tighter">
+                                                    {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            
+                                            {/* Log Meta Details */}
+                                            <div className="flex items-center gap-2 text-[11px] text-gray-400 font-medium">
+                                                <span>{new Date(log.created_at).toLocaleDateString()}</span>
+                                                {!log.details?.user ? (
+                                                    <>
+                                                        <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                                        <span className="text-blue-500/80 font-bold tracking-tight">System Event</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                                        <span>Team Member</span>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

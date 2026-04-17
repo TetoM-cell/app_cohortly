@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { toast } from "sonner";
-import { Camera, Mail, Lock, Loader2, Upload, AlertCircle, Key } from "lucide-react";
+import { Camera, Mail, Lock, Loader2, Upload, AlertCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
 import { Button } from "@/components/ui/button";
@@ -368,43 +368,6 @@ export function ProfileSettings() {
                             </div>
                         </div>
                         <Button variant="outline" size="sm" className="h-7 text-xs bg-white" onClick={() => setIsPasswordModalOpen(true)}>Update</Button>
-                    </div>
-                </div>
-            </div>
-
-            <Separator />
-
-            {/* Owner Controls */}
-            <div className="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
-                <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-gray-900 border-l-2 border-red-500 pl-2">Owner Controls</h4>
-                    <p className="text-xs text-gray-500">
-                        Restricted. Non-owners will experience unauthorized redirects.
-                    </p>
-                </div>
-
-                <div className="md:col-span-2 space-y-4 max-w-2xl">
-                    <div className="flex items-center justify-between p-3 border border-red-100 rounded-xl bg-red-50/50">
-                        <div className="flex items-center gap-3">
-                            <div className="p-1.5 bg-white rounded-lg border border-red-100">
-                                <Key className="w-4 h-4 text-red-500" />
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-red-600 uppercase tracking-tight">Beta Admin</p>
-                                <p className="text-sm font-medium text-gray-900">Beta Authorization Network</p>
-                            </div>
-                        </div>
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-7 text-xs bg-white text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" 
-                            onClick={() => {
-                                closeSettings();
-                                router.push('/admin/beta-codes');
-                            }}
-                        >
-                            Open Admin
-                        </Button>
                     </div>
                 </div>
             </div>

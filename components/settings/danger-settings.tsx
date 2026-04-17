@@ -1,14 +1,45 @@
 "use client";
 
-import React from "react";
-import { AlertTriangle, Trash2 } from "lucide-react";
+import React, { useTransition } from "react";
+import { AlertTriangle, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { deleteAccountAction } from "@/app/actions/user-actions";
+import { supabase } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export function DangerSettings() {
-    const handleDeleteAccount = () => {
-        toast.error("Account deletion is disabled for this preview.");
+    const [isPending, startTransition] = useTransition();
+    const router = useRouter();
+
+    const handleDeleteAccount = async () => {
+        startTransition(async () => {
+            const result = await deleteAccountAction();
+            
+            if (result.error) {
+                toast.error(result.error);
+                return;
+            }
+
+            if (result.success) {
+                // Clear the client-side session and redirect
+                await supabase.auth.signOut();
+                toast.success("Account deleted successfully.");
+                router.push("/login");
+            }
+        });
     };
 
     return (
@@ -40,17 +71,54 @@ export function DangerSettings() {
                                 </p>
                             </div>
                         </div>
-                        <Button 
-                            variant="destructive" 
-                            className="h-9 font-bold text-xs uppercase tracking-wider px-6"
-                            onClick={handleDeleteAccount}
-                        >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete My Account
-                        </Button>
+
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button 
+                                    variant="destructive" 
+                                    className="h-9 font-bold text-xs uppercase tracking-wider px-6"
+                                    disabled={isPending}
+                                >
+                                    {isPending ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Trash2 className="w-4 h-4 mr-2" />
+                                            Delete My Account
+                                        </>
+                                    )}
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete your
+                                        account and remove all your data from our servers.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            handleDeleteAccount();
+                                        }}
+                                        className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                        disabled={isPending}
+                                    >
+                                        {isPending ? "Deleting..." : "Yes, delete account"}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
                 </div>
             </div>
         </div>
     );
 }
+

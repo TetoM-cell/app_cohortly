@@ -170,6 +170,7 @@ export function DataTable<TData extends Application>({
             onBulkStatusChange: (ids: string[], status: string) => onBulkStatusChange?.(ids, status),
             onBulkRunAIReview: (ids: string[]) => onBulkRunAIReview?.(ids),
             onCancelScoring: () => onCancelScoring?.(),
+            blindReview: program.blind_review,
         },
         state: {
             sorting,
@@ -463,23 +464,23 @@ export function DataTable<TData extends Application>({
                 tableMeta={table.options.meta}
                 hasNext={(() => {
                     const rows = table.getFilteredRowModel().rows
-                    const idx = rows.findIndex(r => r.id === activeApplicantId)
+                    const idx = rows.findIndex(r => r.original.id === activeApplicantId)
                     return idx !== -1 && idx < rows.length - 1
                 })()}
                 hasPrev={(() => {
                     const rows = table.getFilteredRowModel().rows
-                    const idx = rows.findIndex(r => r.id === activeApplicantId)
+                    const idx = rows.findIndex(r => r.original.id === activeApplicantId)
                     return idx > 0
                 })()}
                 onNext={() => {
                     const rows = table.getFilteredRowModel().rows
-                    const idx = rows.findIndex(r => r.id === activeApplicantId)
-                    if (idx !== -1 && idx < rows.length - 1) setActiveApplicantId(rows[idx + 1].id)
+                    const idx = rows.findIndex(r => r.original.id === activeApplicantId)
+                    if (idx !== -1 && idx < rows.length - 1) setActiveApplicantId(rows[idx + 1].original.id)
                 }}
                 onPrev={() => {
                     const rows = table.getFilteredRowModel().rows
-                    const idx = rows.findIndex(r => r.id === activeApplicantId)
-                    if (idx > 0) setActiveApplicantId(rows[idx - 1].id)
+                    const idx = rows.findIndex(r => r.original.id === activeApplicantId)
+                    if (idx > 0) setActiveApplicantId(rows[idx - 1].original.id)
                 }}
                 viewMode={layoutPrefs.openPagesIn}
             />

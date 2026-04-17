@@ -1,5 +1,6 @@
 import React from 'react';
-import { Users, Activity, CheckCircle, Target, UsersRound } from 'lucide-react';
+import { Users, Activity, CheckCircle, Target, UsersRound, Link2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
     Tooltip,
     TooltipContent,
@@ -15,6 +16,7 @@ interface DashboardHeaderProps {
     shortlistCount?: number;
     shortlistTarget?: number;
     reviewers?: any[];
+    programId?: string | null;
 }
 
 export function DashboardHeader({
@@ -26,6 +28,7 @@ export function DashboardHeader({
     shortlistCount = 0,
     shortlistTarget = 50,
     reviewers = [],
+    programId,
 }: DashboardHeaderProps) {
     const acceptedPercent = totalApplicants > 0 ? Math.round((acceptedCount / totalApplicants) * 100) : 0;
 

@@ -18,7 +18,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { Table } from "@tanstack/react-table"
-import { Search, Filter, ArrowUpDown, MoreHorizontal, Columns, Plus, X, ChevronDown, ChevronRight, ArrowLeft, Building2, Activity, ListTodo, Calendar as CalendarIcon, ExternalLink, Sparkles, CircleStop, Settings, LayoutDashboard, Pencil, Table2, Kanban, ChevronUp, Download, Upload } from "lucide-react"
+import { Search, Filter, ArrowUpDown, MoreHorizontal, Columns, Plus, X, ChevronDown, ChevronRight, ArrowLeft, Building2, Activity, ListTodo, Calendar as CalendarIcon, ExternalLink, Sparkles, CircleStop, Settings, LayoutDashboard, Pencil, Table2, Kanban, ChevronUp, Download, Upload, Link2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
@@ -27,6 +27,7 @@ import { getStatusColor, getStatusDotColor } from "./columns"
 import { DualRangeSlider } from "@/components/ui/dual-range-slider"
 import { DateRange } from "react-day-picker"
 import { parse, isWithinInterval } from "date-fns"
+import { toast } from "sonner"
 
 import { Criterion } from "./columns"
 import { DataTableSortPopover } from "./data-table-sort-popover"
@@ -467,6 +468,19 @@ export const DataTableToolbar = forwardRef(function DataTableToolbarInner<TData>
                                                 <Settings className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                                 <span className="flex-1 font-medium">Cohort Settings</span>
                                                 <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className="flex items-center gap-2.5 px-2 py-1.5 text-[12px] text-gray-700 rounded-md cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    const url = `${window.location.origin}/review/${program.id}`;
+                                                    navigator.clipboard.writeText(url);
+                                                    toast.success("Guest Portal link copied to clipboard!");
+                                                    setIsSettingsDropdownOpen(false);
+                                                }}
+                                            >
+                                                <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                                <span className="flex-1 font-medium">Copy Guest Link</span>
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 className="flex items-center gap-2.5 px-2 py-1.5 text-[12px] text-gray-700 rounded-md cursor-pointer"

@@ -69,9 +69,11 @@ interface SettingsLaunchProps {
     reviewers: { email: string; role: string; status: string }[];
     setReviewers: React.Dispatch<React.SetStateAction<{ email: string; role: string; status: string }[]>>;
     programId: string | null;
+    cohortData: any;
+    setCohortData: (data: any) => void;
 }
 
-export function SettingsLaunch({ onNext, onBack, onSave, cohortName, steps, currentStep = 4, loading = false, reviewers, setReviewers, programId }: SettingsLaunchProps) {
+export function SettingsLaunch({ onNext, onBack, onSave, cohortName, steps, currentStep = 4, loading = false, reviewers, setReviewers, programId, cohortData, setCohortData }: SettingsLaunchProps) {
     const [emailInput, setEmailInput] = useState("");
     const [pendingInvites, setPendingInvites] = useState<{ email: string; role: string }[]>([]);
     const [anonymousMode, setAnonymousMode] = useState(false);
@@ -735,6 +737,37 @@ export function SettingsLaunch({ onNext, onBack, onSave, cohortName, steps, curr
                                     onChange={(e) => setLaunchSettings({ ...launchSettings, seoDescription: e.target.value })}
                                 />
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-8">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="p-2.5 bg-amber-50 rounded-lg">
+                            <Mail className="w-5 h-5 text-amber-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-900">Contact & Support</h2>
+                            <p className="text-sm text-gray-500 mt-1">Provide contact information for your applicants.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="space-y-3">
+                            <label className="text-[13px] font-bold uppercase tracking-wider text-gray-400">
+                                Support Email Address
+                            </label>
+                            <div className="relative">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Input
+                                    type="email"
+                                    placeholder="e.g. support@yourprogram.com"
+                                    className="h-12 pl-11 rounded-lg border-gray-200 focus-visible:ring-1 focus-visible:ring-black text-[15px] font-semibold"
+                                    value={cohortData.contactEmail}
+                                    onChange={(e) => setCohortData({ ...cohortData, contactEmail: e.target.value })}
+                                />
+                            </div>
+                            <p className="text-xs text-gray-500">This email will be visible on the application form and in success messages.</p>
                         </div>
                     </div>
                 </div>

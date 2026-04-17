@@ -47,6 +47,7 @@ function NewCohortPageContent() {
         deadline: Date | undefined;
         expectedApps: string;
         collectName: boolean;
+        contactEmail: string;
     }>({
         name: "",
         description: "",
@@ -55,6 +56,7 @@ function NewCohortPageContent() {
         deadline: undefined,
         expectedApps: "",
         collectName: false,
+        contactEmail: "",
     });
 
     const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -104,6 +106,7 @@ function NewCohortPageContent() {
                     deadline: program.deadline ? new Date(program.deadline) : undefined,
                     expectedApps: "",
                     collectName: program.collect_name || false,
+                    contactEmail: program.contact_email || "",
                 });
 
                 // 2. Load Form
@@ -215,6 +218,23 @@ function NewCohortPageContent() {
         try {
             let currentProgramId = programId;
 
+            // 0. Ensure a profile row exists for this user (prevents FK violation on programs.owner_id)
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert(
+                    {
+                        id: user.id,
+                        email: user.email,
+                        updated_at: new Date().toISOString(),
+                    },
+                    { onConflict: 'id', ignoreDuplicates: true }
+                );
+
+            if (profileError) {
+                console.error('Profile upsert error:', profileError);
+                // Non-fatal: the row may already exist and RLS may block the upsert; continue anyway.
+            }
+
             // 1. Create/Update Program
             if (!currentProgramId) {
                 // Generate slug and truncate to 50 chars (DB limit)
@@ -237,7 +257,8 @@ function NewCohortPageContent() {
                         deadline: cohortData.deadline?.toISOString(),
                         logo_url: logo,
                         status: status,
-                        collect_name: cohortData.collectName
+                        collect_name: cohortData.collectName,
+                        contact_email: cohortData.contactEmail
                     })
                     .select()
                     .single();
@@ -261,6 +282,7 @@ function NewCohortPageContent() {
                         logo_url: logo,
                         status: status,
                         collect_name: cohortData.collectName,
+                        contact_email: cohortData.contactEmail,
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', currentProgramId);
@@ -523,6 +545,8 @@ function NewCohortPageContent() {
                             reviewers={reviewers}
                             setReviewers={setReviewers}
                             programId={programId}
+                            cohortData={cohortData}
+                            setCohortData={setCohortData}
                         />
                     </motion.div>
                 </AnimatePresence>

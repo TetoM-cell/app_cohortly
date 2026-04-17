@@ -90,13 +90,13 @@ export function DataTableSortPopover<TData>({
                     </div>
                 </div>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-64 p-0 shadow-xl rounded-xl border-gray-200/50" sideOffset={8} collisionPadding={16}>
+            <PopoverContent align="start" className={cn("p-0 shadow-xl rounded-xl border-gray-200/50", showAddView ? "w-52" : "w-auto")} sideOffset={8} collisionPadding={16}>
                 {showAddView ? (
                     <Command>
-                        <CommandInput placeholder="Sort by..." className="h-9 text-xs" />
+                        <CommandInput placeholder="Sort by..." className="h-7 text-xs" />
                         <CommandList>
-                            <CommandEmpty>No column found.</CommandEmpty>
-                            <CommandGroup>
+                            <CommandEmpty className="py-2 text-xs text-center">No column found.</CommandEmpty>
+                            <CommandGroup className="p-1">
                                 {availableColumns.map((col) => (
                                     <CommandItem
                                         key={col.id}
@@ -111,7 +111,7 @@ export function DataTableSortPopover<TData>({
                                                 // If adding to existing, also keep open
                                             }
                                         }}
-                                        className="text-xs"
+                                        className="text-xs !py-1 !px-2 cursor-pointer"
                                     >
                                         {col.title}
                                     </CommandItem>
@@ -131,18 +131,18 @@ export function DataTableSortPopover<TData>({
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="h-7 text-xs font-normal justify-between min-w-[120px] px-2 bg-white"
+                                                className="h-7 text-xs font-normal justify-between min-w-[120px] max-w-[160px] px-2 bg-white"
                                             >
-                                                {getColumnTitle(sort.id)}
-                                                <ChevronDown className="w-3 h-3 text-gray-400 ml-2" />
+                                                <span className="truncate">{getColumnTitle(sort.id)}</span>
+                                                <ChevronDown className="w-3 h-3 text-gray-400 ml-2 shrink-0" />
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="start" className="w-[180px] rounded-xl" collisionPadding={16}>
+                                        <DropdownMenuContent align="start" className="w-[160px] rounded-lg p-0" collisionPadding={16}>
                                             <Command>
-                                                <CommandInput placeholder="Change column..." className="h-8 text-xs" />
+                                                <CommandInput placeholder="Change column..." className="h-7 text-xs" />
                                                 <CommandList>
-                                                    <CommandEmpty>No column found.</CommandEmpty>
-                                                    <CommandGroup>
+                                                    <CommandEmpty className="py-2 text-xs text-center">No column found.</CommandEmpty>
+                                                    <CommandGroup className="p-1">
                                                         {/* Show current column + available ones */}
                                                         {[...availableColumns, columns.find(c => c.id === sort.id)].filter(Boolean).map((col) => (
                                                             <CommandItem
@@ -154,10 +154,10 @@ export function DataTableSortPopover<TData>({
                                                                     newSorting[index] = { ...sort, id: col!.id }
                                                                     table.setSorting(newSorting)
                                                                 }}
-                                                                className="text-xs"
+                                                                className="text-xs !py-1 !px-2 cursor-pointer"
                                                             >
                                                                 <Check className={cn(
-                                                                    "mr-2 h-3.5 w-3.5",
+                                                                    "mr-1.5 h-3 w-3 shrink-0",
                                                                     sort.id === col!.id ? "opacity-100" : "opacity-0"
                                                                 )} />
                                                                 {col!.title}
@@ -180,9 +180,9 @@ export function DataTableSortPopover<TData>({
                                                 <ChevronDown className="w-3 h-3 text-gray-400 ml-2" />
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="start" className="rounded-xl" collisionPadding={16}>
+                                        <DropdownMenuContent align="start" className="rounded-lg p-1 min-w-[110px]" collisionPadding={16}>
                                             <DropdownMenuItem
-                                                className="text-xs"
+                                                className="text-xs py-1 px-2 cursor-pointer"
                                                 onClick={() => {
                                                     const newSorting = [...sorting]
                                                     newSorting[index] = { ...sort, desc: false }
@@ -192,7 +192,7 @@ export function DataTableSortPopover<TData>({
                                                 Ascending
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
-                                                className="text-xs"
+                                                className="text-xs py-1 px-2 cursor-pointer"
                                                 onClick={() => {
                                                     const newSorting = [...sorting]
                                                     newSorting[index] = { ...sort, desc: true }

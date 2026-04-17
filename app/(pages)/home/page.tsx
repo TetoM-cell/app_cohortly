@@ -6,6 +6,7 @@ import { Plus, Users, Target, Activity, Zap, Clock, ArrowRight, MessageSquare, L
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -55,6 +56,15 @@ export default function HomePage() {
   }, [TIPS.length]);
 
   useEffect(() => {
+    // Check if we just seeded a demo cohort
+    if (typeof window !== 'undefined' && window.location.search.includes('demo_seeded=1')) {
+        toast.success('Account created! A demo cohort with fictional applicants has been seeded for you.');
+        // Clean up the URL without reloading
+        const url = new URL(window.location.href);
+        url.searchParams.delete('demo_seeded');
+        window.history.replaceState({}, '', url.toString());
+    }
+
     const fetchDashboardData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -218,50 +228,56 @@ export default function HomePage() {
         </motion.div>
 
         {/* Global KPIs */}
-        <motion.div variants={fadeInUp} id="home-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <Card className="bg-white/60 backdrop-blur-xl border border-zinc-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-600">Total Applications</CardTitle>
-              <Users className="h-4 w-4 text-zinc-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-zinc-900">{totalApplications}</div>
-              <p className="text-xs text-zinc-500 mt-1">Across all cohorts</p>
-            </CardContent>
-          </Card>
+        <motion.div variants={fadeInUp} id="home-stats" className="flex flex-wrap items-center justify-between gap-6 mb-12 w-full border-y border-zinc-200/60 py-6">
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <div className="flex items-center gap-2 text-zinc-500">
+              <Users className="w-4 h-4" />
+              <span className="text-xs font-semibold uppercase tracking-wider">Total Applications</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold tracking-tight text-zinc-900">{totalApplications}</span>
+              <span className="text-xs text-zinc-400">All cohorts</span>
+            </div>
+          </div>
 
-          <Card className="bg-white/60 backdrop-blur-xl border border-zinc-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-600">Average Score</CardTitle>
-              <Target className="h-4 w-4 text-zinc-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-zinc-900">{averageScore}</div>
-              <p className="text-xs text-zinc-500 mt-1">System wide average</p>
-            </CardContent>
-          </Card>
+          <div className="w-px h-12 bg-zinc-200/60 hidden lg:block"></div>
 
-          <Card className="bg-white/60 backdrop-blur-xl border border-zinc-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-600">Pending Reviews</CardTitle>
-              <Activity className="h-4 w-4 text-zinc-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-zinc-900">{pendingReviews}</div>
-              <p className="text-xs text-zinc-500 mt-1">Require your attention</p>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <div className="flex items-center gap-2 text-zinc-500">
+              <Target className="w-4 h-4" />
+              <span className="text-xs font-semibold uppercase tracking-wider">Average Score</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold tracking-tight text-zinc-900">{averageScore}</span>
+              <span className="text-xs text-zinc-400">System wide</span>
+            </div>
+          </div>
 
-          <Card className="bg-white/60 backdrop-blur-xl border border-zinc-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-600">Active Programs</CardTitle>
-              <Zap className="h-4 w-4 text-zinc-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-zinc-900">{activePrograms}</div>
-              <p className="text-xs text-zinc-500 mt-1">Currently accepting applicants</p>
-            </CardContent>
-          </Card>
+          <div className="w-px h-12 bg-zinc-200/60 hidden lg:block"></div>
+
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <div className="flex items-center gap-2 text-zinc-500">
+              <Activity className="w-4 h-4" />
+              <span className="text-xs font-semibold uppercase tracking-wider">Pending Reviews</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold tracking-tight text-zinc-900">{pendingReviews}</span>
+              <span className="text-xs text-zinc-400">Needs attention</span>
+            </div>
+          </div>
+
+          <div className="w-px h-12 bg-zinc-200/60 hidden lg:block"></div>
+
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
+            <div className="flex items-center gap-2 text-zinc-500">
+              <Zap className="w-4 h-4" />
+              <span className="text-xs font-semibold uppercase tracking-wider">Active Programs</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold tracking-tight text-zinc-900">{activePrograms}</span>
+              <span className="text-xs text-zinc-400">Accepting apps</span>
+            </div>
+          </div>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

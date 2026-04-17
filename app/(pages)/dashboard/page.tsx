@@ -213,6 +213,65 @@ function DashboardContent() {
             });
 
             setData(mappedApps);
+
+            // --- AUTOMATION ENGINE ---
+            // Only run if we have rules and apps in 'Scored' status
+            const scoredApps = mappedApps.filter(app => app.status?.toLowerCase() === 'scored');
+            const rules = thresholdData || [];
+
+            if (scoredApps.length > 0 && rules.length > 0) {
+                console.log(`[Automation] Processing ${scoredApps.length} scored applications...`);
+                
+                const updates = scoredApps.map(app => {
+                    let newStatus = null;
+                    
+                    // Evaluate rules (priority: shortlist > reject)
+                    const shortlistRule = rules.find(r => r.action === 'shortlist');
+                    const rejectRule = rules.find(r => r.action === 'reject');
+
+                    if (shortlistRule && app.overallScore >= shortlistRule.value) {
+                        newStatus = 'shortlist';
+                    } else if (rejectRule && app.overallScore < rejectRule.value) {
+                        newStatus = 'rejected';
+                    }
+
+                    if (newStatus) {
+                        return { id: app.id, status: newStatus };
+                    }
+                    return null;
+                }).filter(u => u !== null);
+
+                if (updates.length > 0) {
+                    console.log(`[Automation] Applying auto-status for ${updates.length} apps...`);
+                    
+                    // Group by status for bulk updates
+                    const byStatus: Record<string, string[]> = {};
+                    updates.forEach(u => {
+                        if (!byStatus[u.status]) byStatus[u.status] = [];
+                        byStatus[u.status].push(u.id);
+                    });
+
+                    for (const [status, ids] of Object.entries(byStatus)) {
+                        await supabase
+                            .from('applications')
+                            .update({ status: status })
+                            .in('id', ids);
+
+                        // Log each automation event
+                        const logEntries = ids.map(id => ({
+                            application_id: id,
+                            program_id: programId,
+                            event_type: 'status_change',
+                            message: `Auto-${status} via Threshold Rules`,
+                            details: { to: status, automation: true }
+                        }));
+                        await supabase.from('application_logs').insert(logEntries);
+                    }
+                    
+                    // Silent refresh after automation
+                    fetchData();
+                }
+            }
         } catch (error: any) {
             console.error('[Dashboard] Error loading data:', error);
             toast.error(error.message || "Failed to load dashboard data");
@@ -290,6 +349,36 @@ function DashboardContent() {
         }
     }, [user, fetchData]);
 
+    const handleStatusChange = useCallback(async (id: string, status: string) => {
+        console.log(`[Dashboard] Changing status for ${id} to ${status}...`);
+        
+        // Optimistic update
+        setData(prev => prev.map(app => app.id === id ? { ...app, status } : app));
+
+        const { error } = await supabase
+            .from('applications')
+            .update({ status: status.toLowerCase() })
+            .eq('id', id);
+
+        if (error) {
+            console.error('[Dashboard] Status update error:', error);
+            toast.error("Failed to update status: " + (error.message || "Unknown error"));
+            fetchData();
+        } else {
+            // Add Log Entry
+            await supabase.from('application_logs').insert({
+                application_id: id,
+                program_id: programId,
+                event_type: 'status_change',
+                message: `Status updated to ${status}`,
+                details: { to: status, user: user?.id }
+            });
+
+            toast.success(`Status updated to ${status}`);
+            fetchData();
+        }
+    }, [fetchData, programId, user]);
+
     const handleScoreChange = useCallback(async (applicantId: string, criterionId: string, score: number) => {
         const { data: record } = await supabase
             .from('applications')
@@ -309,27 +398,20 @@ function DashboardContent() {
 
         if (error) {
             toast.error("Failed to update score");
-        }
-    }, []);
-
-    const handleStatusChange = useCallback(async (id: string, status: string) => {
-        // Optimistic update
-        const oldData = [...data];
-        setData(prev => prev.map(app => app.id === id ? { ...app, status } : app));
-
-        const { error } = await supabase
-            .from('applications')
-            .update({ status: status.toLowerCase() })
-            .eq('id', id);
-
-        if (error) {
-            console.error('[Dashboard] Status update error:', error);
-            toast.error("Failed to update status: " + (error.message || "Unknown error"));
-            setData(oldData);
         } else {
-            toast.success(`Status updated to ${status}`);
+            // Add Log Entry
+            await supabase.from('application_logs').insert({
+                application_id: applicantId,
+                program_id: programId,
+                event_type: 'score_update',
+                message: `Score updated for rubric component`,
+                details: { criterionId, score, user: user?.id }
+            });
+
+            toast.success("Score updated");
+            fetchData();
         }
-    }, [data]);
+    }, [programId, user, fetchData]);
 
     const handleBulkDelete = useCallback(async (ids: string[]) => {
         const { error } = await supabase
@@ -374,6 +456,37 @@ function DashboardContent() {
     }, [programId, fetchData]);
 
 
+    // Retry an edge function call with exponential backoff on transient errors (503/429).
+    const invokeWithRetry = useCallback(async (
+        fnName: string,
+        body: object,
+        maxRetries = 3
+    ): Promise<{ data: any; error: any }> => {
+        const RETRYABLE_MESSAGES = ['503', '429', 'unavailable', 'high demand', 'rate limit', 'overloaded'];
+        let lastResult: { data: any; error: any } = { data: null, error: null };
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            lastResult = await supabase.functions.invoke(fnName, { body });
+            const { data: respData, error: respError } = lastResult;
+
+            // Determine if the error is transient and retryable
+            const errorMsg = (respError?.message || respData?.error || '').toLowerCase();
+            const isRetryable = RETRYABLE_MESSAGES.some(keyword => errorMsg.includes(keyword));
+            const hasError = respError || (respData && respData.success === false);
+
+            if (!hasError || !isRetryable || attempt === maxRetries) {
+                return lastResult;
+            }
+
+            // Exponential backoff: 2s, 4s, 8s
+            const delayMs = Math.pow(2, attempt + 1) * 1000;
+            console.warn(`Gemini API transient error (attempt ${attempt + 1}/${maxRetries}). Retrying in ${delayMs / 1000}s...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+
+        return lastResult;
+    }, []);
+
     const handleRunAIReview = useCallback(async (targetIds?: string[]) => {
         if (!programId) return;
 
@@ -396,9 +509,7 @@ function DashboardContent() {
             description: "To ensure stability, AI requests are subject to fair-usage soft limits."
         });
 
-        // 2. Call Edge Function for each applicant
-        // We use sequential or throttled calls to avoid overwhelming the API if it's a huge batch, 
-        // but for typical cohorts Promise.all is fine.
+        // 2. Call Edge Function for each applicant sequentially, with retry on transient errors
         try {
             const results = [];
             for (const id of idsToReview) {
@@ -407,8 +518,9 @@ function DashboardContent() {
                     break;
                 }
                 try {
-                    const { data, error } = await supabase.functions.invoke('score-application', {
-                        body: { application_id: id, program_id: programId }
+                    const { data, error } = await invokeWithRetry('score-application', {
+                        application_id: id,
+                        program_id: programId
                     });
 
                     if (error || (data && data.success === false)) {
@@ -416,6 +528,14 @@ function DashboardContent() {
                         console.error(`AI review error for applicant ${id}:`, errorMsg);
                         results.push({ id, error: errorMsg });
                     } else {
+                        // Add Log Entry for AI Review
+                        await supabase.from('application_logs').insert({
+                            application_id: id,
+                            program_id: programId,
+                            event_type: 'ai_review',
+                            message: `AI Review completed with score ${data.score}`,
+                            details: { score: data.score, model: 'Gemini 1.5 Pro' }
+                        });
                         results.push({ id, error: null });
                     }
                 } catch (e: any) {
@@ -427,7 +547,7 @@ function DashboardContent() {
             const failed = results.filter(r => r.error);
             if (failed.length > 0) {
                 console.error("AI review failures detailed:", failed);
-                toast.error(`${failed.length} reviews failed. See console for details.`);
+                toast.error(`${failed.length} review(s) failed after retries. The Gemini API may be experiencing high demand — please try again shortly.`);
             } else {
                 toast.success("AI review complete!");
             }
@@ -442,7 +562,7 @@ function DashboardContent() {
             setIsScoring(false);
             cancelScoringRef.current = false;
         }
-    }, [programId, data, fetchData]);
+    }, [programId, data, fetchData, invokeWithRetry]);
 
     const handleCancelAIReview = useCallback(() => {
         cancelScoringRef.current = true;
@@ -475,7 +595,7 @@ function DashboardContent() {
     const shortlistCount = data.filter(app => ['shortlist', 'shortlisted'].includes(app.status?.toLowerCase())).length;
 
     // Get the target limit from threshold_rules if available
-    const shortlistTarget = program?.threshold_rules?.find((t: any) => t.action === 'target')?.value || 50;
+    const shortlistTarget = program?.threshold_rules?.find((t: any) => t.target === 'limit')?.value || 50;
 
     return (
         <div className="flex flex-col h-full overflow-hidden w-full relative">
@@ -489,6 +609,7 @@ function DashboardContent() {
                 shortlistCount={shortlistCount}
                 shortlistTarget={shortlistTarget}
                 reviewers={program.reviewers}
+                programId={programId}
             />
             <div className="flex-1 px-6 py-4 min-h-0 flex flex-col gap-2">
                 {loading && data.length === 0 ? (

@@ -181,12 +181,46 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
         return <FormSkeleton />;
     }
 
-    if (!program || !program.sections || program.sections.length === 0) {
+    // Gating Logic: Check if the application window is open
+    const now = new Date();
+    const openDate = program?.open_date ? new Date(program.open_date) : null;
+    const deadline = program?.deadline ? new Date(program.deadline) : null;
+    const isNotStarted = openDate && now < openDate;
+    const isClosed = deadline && now > deadline;
+
+    if (!program || !program.sections || program.sections.length === 0 || isNotStarted || isClosed) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center space-y-4">
-                    <h1 className="text-2xl font-bold text-gray-900">Form Not Ready</h1>
-                    <p className="text-gray-500">This program doesn't have an application form set up yet or the program was not found.</p>
+            <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] p-6">
+                <div className="max-w-md w-full bg-white rounded-3xl p-8 text-center shadow-xl shadow-blue-900/5 border border-gray-100 space-y-6">
+                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-400">
+                        {isNotStarted ? <Clock className="w-8 h-8" /> : <X className="w-8 h-8" />}
+                    </div>
+                    <div className="space-y-2">
+                        <h1 className="text-xl font-bold text-gray-900">
+                            {!program ? "Program Not Found" :
+                             isNotStarted ? "Applications Not Yet Open" :
+                             isClosed ? "Applications Closed" : "Form Not Ready"}
+                        </h1>
+                        <p className="text-sm text-gray-500 leading-relaxed font-medium">
+                            {!program ? "The program you are looking for does not exist or has been removed." :
+                             isNotStarted ? `This program will begin accepting applications on ${openDate?.toLocaleDateString()} at ${openDate?.toLocaleTimeString()}.` :
+                             isClosed ? "The application deadline for this program has passed. We are no longer accepting new submissions." :
+                             "This program doesn't have an application form set up yet."}
+                        </p>
+                    </div>
+                    {program && (
+                        <div className="pt-4 border-t border-gray-50">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Questions?</p>
+                            <p className="text-xs font-bold text-blue-600 mt-1">{program.contact_email || "support@cohortly.app"}</p>
+                        </div>
+                    )}
+                    <Button 
+                        variant="outline" 
+                        className="w-full h-11 rounded-xl font-bold text-sm"
+                        onClick={() => window.location.href = "/"}
+                    >
+                        Back to Home
+                    </Button>
                 </div>
             </div>
         );
