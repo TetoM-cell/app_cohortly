@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const code = searchParams.get('code')
     const error = searchParams.get('error')
     const error_description = searchParams.get('error_description')
-    const next = searchParams.get('next') ?? '/dashboard'
+    const next = searchParams.get('next') ?? '/home'
 
     if (error) {
         console.error('Auth error:', error, error_description)
@@ -16,11 +16,11 @@ export async function GET(request: Request) {
     if (code) {
         const supabase = await createClient()
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-        
+
         if (!exchangeError) {
             return NextResponse.redirect(`${origin}${next}`)
         }
-        
+
         console.error('Exchange error:', exchangeError.message)
         return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(exchangeError.message)}`)
     }
