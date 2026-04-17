@@ -761,7 +761,7 @@ export function SettingsLaunch({ onNext, onBack, onSave, cohortName, steps, curr
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Input
                                     type="email"
-                                    placeholder="e.g. support@yourprogram.com"
+                                    placeholder="e.g. cohortlyapp@gmail.com"
                                     className="h-12 pl-11 rounded-lg border-gray-200 focus-visible:ring-1 focus-visible:ring-black text-[15px] font-semibold"
                                     value={cohortData.contactEmail}
                                     onChange={(e) => setCohortData({ ...cohortData, contactEmail: e.target.value })}

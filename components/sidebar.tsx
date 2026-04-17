@@ -560,35 +560,29 @@ function SidebarContent() {
                                 </TooltipTrigger>
                                 <DropdownMenuContent side="top" align="start" className="w-52 mb-2 px-1">
                                     <DropdownMenuItem className="gap-2 cursor-pointer" asChild>
-                                        <Link href="/docs" className="flex items-center w-full">
+                                        <a href="https://getcohortly.vercel.app/docs" target="_blank" rel="noopener noreferrer" className="flex items-center w-full">
                                             <BookOpen className="w-4 h-4 text-gray-400" />
                                             <span className="font-medium">Documentation</span>
-                                        </Link>
+                                        </a>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem className="gap-2 cursor-pointer" asChild>
-                                        <Link href="/releases" className="flex items-center w-full">
+                                        <a href="https://getcohortly.vercel.app/releases" target="_blank" rel="noopener noreferrer" className="flex items-center w-full">
                                             <Rocket className="w-4 h-4 text-gray-400" />
                                             <span className="font-medium">Releases</span>
-                                        </Link>
+                                        </a>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem className="gap-2 cursor-pointer" asChild>
-                                        <Link href="/support" className="flex items-center w-full">
+                                        <a href="https://getcohortly.vercel.app/support" target="_blank" rel="noopener noreferrer" className="flex items-center w-full">
                                             <MessageSquare className="w-4 h-4 text-gray-400" />
                                             <span className="font-medium">Support</span>
-                                        </Link>
+                                        </a>
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem className="gap-2 cursor-pointer" asChild>
-                                        <Link href="/terms-privacy" className="flex items-center w-full">
+                                        <a href="https://getcohortly.vercel.app/terms-privacy" target="_blank" rel="noopener noreferrer" className="flex items-center w-full">
                                             <Shield className="w-4 h-4 text-gray-400" />
                                             <span className="font-medium">Terms & Privacy</span>
-                                        </Link>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="gap-2 cursor-pointer" asChild>
-                                        <Link href="#" className="flex items-center w-full">
-                                            <PlusCircle className="w-4 h-4 text-gray-400" />
-                                            <span className="font-medium text-blue-600">Request a feature</span>
-                                        </Link>
+                                        </a>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>

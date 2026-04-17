@@ -211,7 +211,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
                     {program && (
                         <div className="pt-4 border-t border-gray-50">
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Questions?</p>
-                            <p className="text-xs font-bold text-blue-600 mt-1">{program.contact_email || "support@cohortly.app"}</p>
+                            <p className="text-xs font-bold text-blue-600 mt-1">{program.contact_email || "cohortlyapp@gmail.com"}</p>
                         </div>
                     )}
                     <Button 
@@ -232,7 +232,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
         logo: program.logo_url || "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60",
         coverImage: program.cover_image_url || "https://images.unsplash.com/photo-1557683316-973673baf926?w=1200&auto=format&fit=crop&q=60",
         thankYouMessage: program.thank_you_msg || "We've received your application and will review it soon.",
-        contactEmail: program.contact_email || "support@cohortly.app",
+        contactEmail: program.contact_email || "cohortlyapp@gmail.com",
         nextSteps: program.next_steps || [
             { title: "Initial Review", description: "Our team will review your responses within 48 hours." },
             { title: "Shortlisting", description: "Selected candidates will be moved to the next phase." },
