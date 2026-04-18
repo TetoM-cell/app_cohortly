@@ -48,7 +48,7 @@ export type Comment = {
     columnId?: string
     user?: {
         name: string
-        avatarUrl: string
+        avatarUrl?: string
     }
 }
 
