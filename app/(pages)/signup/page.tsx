@@ -1,19 +1,21 @@
 'use client';
 
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { ScalingWrapper } from '@/components/scaling-wrapper';
+import { Loader2 } from 'lucide-react';
 
-export default function SignupPage() {
+function SignupForm() {
     const [loading, setLoading] = useState(false);
     const [currentTextIndex, setCurrentTextIndex] = useState(0);
     const [isVisible, setIsVisible] = useState(true);
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const texts = [
         { regular: "Create your first program in under 2 minutes and turn chaotic applications into ", emphasized: "a clean, automated pipeline." },
@@ -24,14 +26,13 @@ export default function SignupPage() {
 
     useEffect(() => {
         // Handle redirection errors from the gatekeeper
-        if (typeof window !== 'undefined' && window.location.search.includes('error=account_not_found')) {
+        const error = searchParams.get('error');
+        if (error === 'account_not_found') {
             toast.error("No account found for this email. Please sign up to continue.", {
                 duration: 5000,
             });
-            // Clean up URL
-            const url = new URL(window.location.href);
-            url.searchParams.delete('error');
-            window.history.replaceState({}, '', url.toString());
+        } else if (error) {
+            toast.error(decodeURIComponent(error));
         }
 
         const interval = setInterval(() => {
@@ -42,14 +43,14 @@ export default function SignupPage() {
             }, 1000);
         }, 5000);
         return () => clearInterval(interval);
-    }, [texts.length]);
+    }, [texts.length, searchParams]);
 
     const handleGoogleLogin = async () => {
         setLoading(true);
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/auth/callback?mode=signup`,
+                redirectTo: `${window.location.origin}/auth/callback`,
                 queryParams: {
                     access_type: 'offline',
                     prompt: 'consent',
@@ -159,5 +160,13 @@ export default function SignupPage() {
                 </div>
             </div>
         </ScalingWrapper>
+    );
+}
+
+export default function SignupPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="h-5 w-5 animate-spin text-black/20" /></div>}>
+            <SignupForm />
+        </Suspense>
     );
 }

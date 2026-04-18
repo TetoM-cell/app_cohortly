@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { ScalingWrapper } from '@/components/scaling-wrapper';
+import { Loader2 } from 'lucide-react';
 
 function LoginForm() {
     const [currentTextIndex, setCurrentTextIndex] = useState(0);
@@ -46,7 +47,7 @@ function LoginForm() {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/auth/callback?mode=login`,
+                redirectTo: `${window.location.origin}/auth/callback`,
                 queryParams: {
                     access_type: 'offline',
                     prompt: 'consent',
@@ -161,7 +162,7 @@ function LoginForm() {
 
 export default function LoginPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>}>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="h-5 w-5 animate-spin text-black/20" /></div>}>
             <LoginForm />
         </Suspense>
     );
