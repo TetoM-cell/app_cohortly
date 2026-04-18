@@ -117,6 +117,90 @@ export async function seedDemoCohort(supabase: SupabaseClient, userId: string) {
                 [q2Id]: 'Wearable integration platform for remote patient monitoring. Doctors get real-time alerts if vitals drop.',
                 [q3Id]: '$12,000 MRR'
             }
+        },
+        {
+            program_id: programId,
+            applicant_name: 'Dana Okafor',
+            applicant_email: 'dana@ledgerleaf.io',
+            company_name: 'LedgerLeaf',
+            status: 'new',
+            answers: {
+                [q1Id]: 'LedgerLeaf',
+                [q2Id]: 'We help climate startups automate carbon accounting and investor reporting by pulling data directly from their finance stack and suppliers.',
+                [q3Id]: '$3,200 MRR'
+            }
+        },
+        {
+            program_id: programId,
+            applicant_name: 'Ethan Park',
+            applicant_email: 'ethan@dockpilot.ai',
+            company_name: 'DockPilot',
+            status: 'new',
+            answers: {
+                [q1Id]: 'DockPilot',
+                [q2Id]: 'AI copilot for warehouse dock scheduling that predicts truck arrival delays, reassigns bays, and reduces idle labor time.',
+                [q3Id]: '$18,500 MRR'
+            }
+        },
+        {
+            program_id: programId,
+            applicant_name: 'Fatima Rahman',
+            applicant_email: 'fatima@campusbite.app',
+            company_name: 'CampusBite',
+            status: 'new',
+            answers: {
+                [q1Id]: 'CampusBite',
+                [q2Id]: 'Mobile ordering and pickup software for university cafeterias, built to handle meal-plan payments and peak lunchtime queues.',
+                [q3Id]: '$1,100 MRR'
+            }
+        },
+        {
+            program_id: programId,
+            applicant_name: 'Gabriel Mensah',
+            applicant_email: 'gabriel@claimforge.io',
+            company_name: 'ClaimForge',
+            status: 'new',
+            answers: {
+                [q1Id]: 'ClaimForge',
+                [q2Id]: 'We automate commercial insurance claims intake for brokers, turning emails, PDFs, and photos into structured case files in minutes.',
+                [q3Id]: 'Pre-revenue'
+            }
+        },
+        {
+            program_id: programId,
+            applicant_name: 'Hannah Lee',
+            applicant_email: 'hannah@rootgrid.energy',
+            company_name: 'RootGrid Energy',
+            status: 'new',
+            answers: {
+                [q1Id]: 'RootGrid Energy',
+                [q2Id]: 'Software for solar installers to design residential systems faster, generate financing options, and monitor project profitability.',
+                [q3Id]: '$7,800 MRR'
+            }
+        },
+        {
+            program_id: programId,
+            applicant_name: 'Isaac Moreno',
+            applicant_email: 'isaac@voiceops.dev',
+            company_name: 'VoiceOps',
+            status: 'new',
+            answers: {
+                [q1Id]: 'VoiceOps',
+                [q2Id]: 'Developer toolkit for building multilingual voice agents with call routing, observability, and compliance logs out of the box.',
+                [q3Id]: '$24,000 MRR'
+            }
+        },
+        {
+            program_id: programId,
+            applicant_name: 'Jia Chen',
+            applicant_email: 'jia@trialmesh.bio',
+            company_name: 'TrialMesh Bio',
+            status: 'new',
+            answers: {
+                [q1Id]: 'TrialMesh Bio',
+                [q2Id]: 'Patient recruitment platform for biotech trials that matches eligible participants from specialty clinics using structured eligibility data.',
+                [q3Id]: '$9,400 MRR'
+            }
         }
     ];
 
