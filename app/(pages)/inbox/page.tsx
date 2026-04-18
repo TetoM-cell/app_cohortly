@@ -8,6 +8,7 @@ import { Users, MessageSquare, Inbox, CheckCircle2, Search, Filter, Archive, Che
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getDisplayName } from "@/lib/user-display";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -128,11 +129,11 @@ export default function InboxPage() {
           if (appIdsForComments.length > 0) {
             const { data: commentsData } = await supabase
               .from('comments')
-              .select(`
+                .select(`
                 id,
                 text,
                 created_at,
-                profiles (full_name),
+                profiles (full_name, email),
                 applications (program_id, programs (name))
               `)
               .in('application_id', appIdsForComments)
@@ -143,7 +144,7 @@ export default function InboxPage() {
               commentsData.forEach((comment: any) => {
                 const progId = comment.applications?.program_id;
                 const progName = comment.applications?.programs?.name || 'Unknown Program';
-                const userName = comment.profiles?.full_name || 'Someone';
+                const userName = getDisplayName(comment.profiles?.full_name, comment.profiles?.email);
 
                 if (progId) {
                   allActivities.push({

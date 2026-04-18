@@ -6,6 +6,7 @@ import { Plus, Rocket, Loader2, UsersRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { exportApplicationsToCSV } from '@/lib/export';
+import { buildUserDisplay, getDisplayName } from '@/lib/user-display';
 
 interface SavedView {
     id: string;
@@ -58,11 +59,34 @@ function DashboardContent() {
                     .eq('id', user.id)
                     .maybeSingle();
 
+                const mergedProfile = {
+                    ...profile,
+                    full_name: getDisplayName(profile?.full_name, profile?.email || user.email),
+                    email: profile?.email || user.email,
+                    avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url
+                };
+
+                if (profile && (
+                    profile.full_name !== mergedProfile.full_name ||
+                    profile.email !== mergedProfile.email ||
+                    profile.avatar_url !== mergedProfile.avatar_url
+                )) {
+                    await supabase
+                        .from('profiles')
+                        .update({
+                            full_name: mergedProfile.full_name,
+                            email: mergedProfile.email,
+                            avatar_url: mergedProfile.avatar_url
+                        })
+                        .eq('id', user.id);
+                }
+
                 if (profile) {
-                    setCurrentUserProfile(profile);
+                    setCurrentUserProfile(mergedProfile);
                 } else {
                     setCurrentUserProfile({
-                        full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+                        full_name: getDisplayName(user.user_metadata?.full_name, user.email),
+                        email: user.email,
                         avatar_url: user.user_metadata?.avatar_url
                     });
                 }
@@ -160,7 +184,7 @@ function DashboardContent() {
                         user_id,
                         column_id,
                         created_at,
-                        user:profiles!user_id ( full_name, avatar_url )
+                        user:profiles!user_id ( full_name, email, avatar_url )
                     `)
                     .in('application_id', appsData.map(a => a.id));
 
@@ -187,10 +211,11 @@ function DashboardContent() {
                         text: c.text,
                         userId: c.user_id,
                         createdAt: c.created_at,
-                        user: {
-                            name: (c.user as any)?.full_name,
+                        user: buildUserDisplay({
+                            fullName: (c.user as any)?.full_name,
+                            email: (c.user as any)?.email,
                             avatarUrl: (c.user as any)?.avatar_url
-                        }
+                        })
                     });
                 });
 
@@ -673,4 +698,4 @@ export default function Dashboard() {
             <DashboardContent />
         </Suspense>
     );
-}
+}

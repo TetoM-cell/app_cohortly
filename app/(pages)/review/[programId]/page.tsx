@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { MentionDropdown, Reviewer } from '@/components/ui/mention-dropdown';
 import Link from 'next/link';
+import { buildUserDisplay, getDisplayName } from '@/lib/user-display';
 
 export default function ReviewPortal({ params }: { params: Promise<{ programId: string }> }) {
     const resolvedParams = use(params);
@@ -53,8 +54,31 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
                     .eq('id', user.id)
                     .maybeSingle();
 
-                setCurrentUserProfile(profile || {
-                    full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+                const mergedProfile = {
+                    ...profile,
+                    full_name: getDisplayName(profile?.full_name, profile?.email || user.email),
+                    email: profile?.email || user.email,
+                    avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url
+                };
+
+                if (profile && (
+                    profile.full_name !== mergedProfile.full_name ||
+                    profile.email !== mergedProfile.email ||
+                    profile.avatar_url !== mergedProfile.avatar_url
+                )) {
+                    await supabase
+                        .from('profiles')
+                        .update({
+                            full_name: mergedProfile.full_name,
+                            email: mergedProfile.email,
+                            avatar_url: mergedProfile.avatar_url
+                        })
+                        .eq('id', user.id);
+                }
+
+                setCurrentUserProfile(profile ? mergedProfile : {
+                    full_name: getDisplayName(user.user_metadata?.full_name, user.email),
+                    email: user.email,
                     avatar_url: user.user_metadata?.avatar_url
                 });
             }
@@ -126,7 +150,7 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
             if (appsData && appsData.length > 0) {
                 const { data: fetchedComments } = await supabase
                     .from('comments')
-                    .select(`id, application_id, text, user_id, column_id, created_at, user:profiles!user_id ( full_name, avatar_url )`)
+                    .select(`id, application_id, text, user_id, column_id, created_at, user:profiles!user_id ( full_name, email, avatar_url )`)
                     .in('application_id', appsData.map(a => a.id));
                 commentsData = fetchedComments || [];
             }
@@ -147,7 +171,11 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
                         text: c.text,
                         userId: c.user_id,
                         createdAt: c.created_at,
-                        user: { name: (c.user as any)?.full_name, avatarUrl: (c.user as any)?.avatar_url }
+                        user: buildUserDisplay({
+                            fullName: (c.user as any)?.full_name,
+                            email: (c.user as any)?.email,
+                            avatarUrl: (c.user as any)?.avatar_url
+                        })
                     });
                 });
 
@@ -229,7 +257,11 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
             text: commentText,
             userId: user.id,
             createdAt: new Date().toISOString(),
-            user: { name: currentUserProfile?.full_name, avatarUrl: currentUserProfile?.avatar_url }
+            user: buildUserDisplay({
+                fullName: currentUserProfile?.full_name,
+                email: currentUserProfile?.email || user.email,
+                avatarUrl: currentUserProfile?.avatar_url
+            })
         };
 
         // Optimistic update

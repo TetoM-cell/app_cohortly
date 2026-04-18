@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { SpotlightTour } from "@/components/SpotlightTour";
+import { getDisplayName } from "@/lib/user-display";
 
 export default function HomePage() {
   const router = useRouter();
@@ -70,7 +71,7 @@ export default function HomePage() {
         const { data: { user } } = await supabase.auth.getUser();
         
         if (user) {
-          setUserName(user.user_metadata?.full_name || user.email?.split("@")[0] || "there");
+          setUserName(getDisplayName(user.user_metadata?.full_name, user.email));
 
           // 1. Fetch active programs (where status is 'published')
           const { data: programsData, error: programsError } = await supabase
@@ -139,6 +140,7 @@ export default function HomePage() {
                   created_at,
                   profiles (
                     full_name,
+                    email,
                     avatar_url
                   ),
                   applications (
@@ -442,7 +444,7 @@ export default function HomePage() {
                     recentComments.map((comment) => {
                       const programId = comment.applications?.program_id;
                       const programName = comment.applications?.programs?.name || 'a program';
-                      const userName = comment.profiles?.full_name || 'Someone';
+                      const userName = getDisplayName(comment.profiles?.full_name, comment.profiles?.email);
                       return (
                         <div 
                           key={comment.id}
