@@ -105,7 +105,7 @@ export function ApplicantSheet({
             .select('*')
             .eq('application_id', applicant.id)
             .order('created_at', { ascending: false });
-        
+
         if (!error && data) {
             setLogs(data);
         }
@@ -291,14 +291,14 @@ export function ApplicantSheet({
                             <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                                 <Activity className="w-16 h-16 text-blue-600" />
                             </div>
-                            
+
                             {isBlindMode && (
                                 <div className="absolute inset-0 z-20 bg-white/60 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center transition-all group-hover:bg-white/40">
                                     <Lock className="w-6 h-6 text-gray-400 mb-2" />
                                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Blind Review Active</p>
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
                                         className="h-8 rounded-full px-4 text-[11px] font-bold border-gray-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm"
                                         onClick={() => setScoresRevealed(true)}
                                     >
@@ -311,20 +311,20 @@ export function ApplicantSheet({
                             <div className="relative mb-3">
                                 {/* Simple CSS Ring */}
                                 <div className="w-24 h-24 rounded-full border-4 border-gray-50 flex items-center justify-center relative">
-                                    <div 
+                                    <div
                                         className={cn(
                                             "absolute inset-[-4px] rounded-full border-4 border-transparent transition-all duration-1000",
-                                            isBlindMode ? "border-gray-200" : 
-                                            applicant.overallScore >= 76 ? "border-t-green-500 border-r-green-500" : 
-                                            applicant.overallScore >= 51 ? "border-t-amber-500 border-r-amber-500" : "border-t-red-500 border-r-red-500"
+                                            isBlindMode ? "border-gray-200" :
+                                                applicant.overallScore >= 76 ? "border-t-green-500 border-r-green-500" :
+                                                    applicant.overallScore >= 51 ? "border-t-amber-500 border-r-amber-500" : "border-t-red-500 border-r-red-500"
                                         )}
                                         style={{ transform: `rotate(${isBlindMode ? 0 : (applicant.overallScore / 100) * 360}deg)` }}
                                     />
                                     <div className="text-center">
-                                        <div className={cn("text-3xl font-black tracking-tighter", 
+                                        <div className={cn("text-3xl font-black tracking-tighter",
                                             isBlindMode ? "text-gray-300" :
-                                            applicant.overallScore >= 76 ? "text-green-600" : 
-                                            applicant.overallScore >= 51 ? "text-amber-600" : "text-red-600"
+                                                applicant.overallScore >= 76 ? "text-green-600" :
+                                                    applicant.overallScore >= 51 ? "text-amber-600" : "text-red-600"
                                         )}>
                                             {isBlindMode ? "--" : applicant.overallScore}
                                         </div>
@@ -347,14 +347,14 @@ export function ApplicantSheet({
                                 const score = applicant.scores?.[c.id] || 0;
                                 const isActive = activeField === c.id;
                                 const commentCount = applicant.comments?.[c.id]?.length || 0;
-                                
+
                                 return (
-                                    <div 
-                                        key={c.id} 
+                                    <div
+                                        key={c.id}
                                         className={cn(
                                             "rounded-xl p-3 border transition-all cursor-pointer group/card relative",
-                                            isActive 
-                                                ? "bg-blue-50/50 border-blue-200 shadow-sm" 
+                                            isActive
+                                                ? "bg-blue-50/50 border-blue-200 shadow-sm"
                                                 : "bg-gray-50/50 border-gray-100/50 hover:border-gray-200"
                                         )}
                                         onClick={() => setActiveField(isActive ? null : c.id)}
@@ -374,15 +374,15 @@ export function ApplicantSheet({
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className={cn("text-xs font-black", 
+                                            <span className={cn("text-xs font-black",
                                                 score >= 76 ? "text-green-600" : score >= 51 ? "text-amber-600" : "text-red-600"
                                             )}>
                                                 {isBlindMode ? "--" : score}
                                             </span>
                                         </div>
                                         <div className="h-1.5 w-full bg-gray-200/50 rounded-full overflow-hidden">
-                                            <div 
-                                                className={cn("h-full rounded-full transition-all duration-700", 
+                                            <div
+                                                className={cn("h-full rounded-full transition-all duration-700",
                                                     score >= 76 ? "bg-green-500" : score >= 51 ? "bg-amber-500" : "bg-red-500"
                                                 )}
                                                 style={{ width: isBlindMode ? '0%' : `${score}%` }}
@@ -391,13 +391,13 @@ export function ApplicantSheet({
                                     </div>
                                 );
                             })}
-                            
+
                             {/* Status Card (Always present) */}
-                            <div 
+                            <div
                                 className={cn(
                                     "col-span-2 rounded-xl p-3 flex items-center justify-between border transition-all cursor-pointer",
-                                    activeField === 'status' 
-                                        ? "bg-blue-100/50 border-blue-300" 
+                                    activeField === 'status'
+                                        ? "bg-blue-100/50 border-blue-300"
                                         : "bg-blue-50/30 border-blue-100/50"
                                 )}
                                 onClick={() => setActiveField(activeField === 'status' ? null : 'status')}
@@ -492,7 +492,7 @@ export function ApplicantSheet({
                                         <div className="p-2 bg-white rounded-full shadow-sm border border-blue-100">
                                             <Lock className="w-4 h-4 text-blue-400" />
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={() => setScoresRevealed(true)}
                                             className="text-[11px] font-black text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-widest"
                                         >
@@ -533,8 +533,8 @@ export function ApplicantSheet({
                                     <div key={media.id} className="group relative bg-gray-50 rounded-xl overflow-hidden border border-gray-100 transition-all hover:border-blue-200 hover:shadow-sm">
                                         {media.type === 'image-upload' ? (
                                             <div className="aspect-video relative overflow-hidden bg-gray-100">
-                                                <img 
-                                                    src={media.answer} 
+                                                <img
+                                                    src={media.answer}
                                                     alt={media.text}
                                                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
                                                 />
@@ -556,8 +556,8 @@ export function ApplicantSheet({
                                                         </Button>
                                                     </div>
                                                 ) : (
-                                                    <video 
-                                                        src={media.answer} 
+                                                    <video
+                                                        src={media.answer}
                                                         className="w-full h-full object-cover"
                                                         controls
                                                     />
@@ -572,9 +572,9 @@ export function ApplicantSheet({
                                                     <p className="text-sm font-medium text-gray-900 truncate">{media.text}</p>
                                                     <p className="text-[11px] text-gray-500">File Attachment</p>
                                                 </div>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
                                                     onClick={() => window.open(media.answer, '_blank')}
                                                 >
@@ -594,12 +594,12 @@ export function ApplicantSheet({
                 <div ref={commentsSectionRef} className="bg-gray-50/50 min-h-[400px]">
                     <div className="sticky top-0 z-20 bg-gray-50/50 p-8 sm:p-12 pt-8 pb-4 border-b border-gray-100/50">
                         <h3 className="text-sm font-semibold text-gray-400 mb-6 flex items-center gap-2 uppercase tracking-tight">
-                            Comments 
+                            Comments
                             {activeField && (
                                 <div className="flex items-center gap-2 ml-2 lowercase font-bold">
                                     <span className="text-blue-500 tracking-tight flex items-center gap-1.5 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
                                         on {properties.find(p => p.id === activeField)?.label || activeField}
-                                        <button 
+                                        <button
                                             onClick={() => setActiveField(null)}
                                             className="p-0.5 hover:bg-blue-100 rounded transition-colors"
                                             title="Return to general comments"
@@ -716,77 +716,6 @@ export function ApplicantSheet({
                             )}
                         </div>
                     </div>
-
-                    {/* ACTIVITY FEED SECTION */}
-                    <div className="px-8 sm:px-12 py-12 border-t border-gray-50 bg-gray-50/20">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-sm font-bold text-gray-400 flex items-center gap-2 uppercase tracking-widest">
-                                <History className="w-4 h-4" />
-                                Activity Feed
-                            </h3>
-                            <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest bg-white px-2 py-0.5 rounded border border-gray-100">
-                                {logs.length} Events
-                            </span>
-                        </div>
-
-                        <div className="relative space-y-6">
-                            {/* Vertical Timeline Line */}
-                            {logs.length > 1 && (
-                                <div className="absolute left-[11px] top-2 bottom-2 w-px bg-gray-200/60" />
-                            )}
-
-                            {logs.length === 0 ? (
-                                <div className="py-8 text-center bg-white rounded-xl border border-dashed border-gray-200">
-                                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-2 text-gray-300">
-                                        <Clock className="w-5 h-5" />
-                                    </div>
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No activity yet</p>
-                                </div>
-                            ) : (
-                                logs.map((log, i) => (
-                                    <div key={log.id} className="relative pl-8 group">
-                                        {/* Node */}
-                                        <div className={cn(
-                                            "absolute left-0 top-1.5 w-[22px] h-[22px] rounded-full border-2 border-white shadow-sm flex items-center justify-center z-10 transition-transform group-hover:scale-110",
-                                            log.event_type === 'status_change' ? "bg-blue-500" : 
-                                            log.event_type === 'score_update' ? "bg-amber-500" : "bg-purple-500"
-                                        )}>
-                                            {log.event_type === 'status_change' ? <ArrowUp className="w-2.5 h-2.5 text-white" /> : 
-                                             log.event_type === 'score_update' ? <Activity className="w-2.5 h-2.5 text-white" /> : 
-                                             <Sparkles className="w-2.5 h-2.5 text-white" />}
-                                        </div>
-
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center justify-between gap-4 mb-1">
-                                                <span className="text-sm font-bold text-gray-700 leading-tight">
-                                                    {log.message}
-                                                </span>
-                                                <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap uppercase tracking-tighter">
-                                                    {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                            </div>
-                                            
-                                            {/* Log Meta Details */}
-                                            <div className="flex items-center gap-2 text-[11px] text-gray-400 font-medium">
-                                                <span>{new Date(log.created_at).toLocaleDateString()}</span>
-                                                {!log.details?.user ? (
-                                                    <>
-                                                        <span className="w-1 h-1 rounded-full bg-gray-300" />
-                                                        <span className="text-blue-500/80 font-bold tracking-tight">System Event</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <span className="w-1 h-1 rounded-full bg-gray-300" />
-                                                        <span>Team Member</span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -795,7 +724,7 @@ export function ApplicantSheet({
     if (viewMode === 'center-sheet') {
         return (
             <Dialog open={isOpen} onOpenChange={onOpenChange}>
-                <DialogContent 
+                <DialogContent
                     className="sm:max-w-[70vw] h-[90vh] p-0 overflow-hidden flex flex-col rounded-xl border border-gray-100 shadow-2xl"
                     wrapperClassName="p-0 h-full flex flex-col"
                 >
