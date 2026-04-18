@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Application, getScoreColor, getStatusIcon, getStatusDotColor } from '../../dashboard/components/columns';
+import { Application, Comment, getScoreColor, getStatusIcon, getStatusDotColor } from '../../dashboard/components/columns';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { MentionDropdown, Reviewer } from '@/components/ui/mention-dropdown';
@@ -252,7 +252,7 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
         if (!applicant || !user) return;
 
         const colId = activeField || 'general';
-        const newCommentObj = {
+        const newCommentObj: Comment = {
             id: 'temp-' + Date.now(),
             text: commentText,
             userId: user.id,
@@ -267,10 +267,13 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
         // Optimistic update
         setData(prev => prev.map(a => {
             if (a.id !== applicant.id) return a;
-            const existingComments = a.comments?.[colId] || [];
+            const existingComments: Comment[] = a.comments?.[colId] || [];
             return {
                 ...a,
-                comments: { ...a.comments, [colId]: [...existingComments, newCommentObj] }
+                comments: {
+                    ...(a.comments || {}),
+                    [colId]: [...existingComments, newCommentObj] as Comment[]
+                }
             };
         }));
 
