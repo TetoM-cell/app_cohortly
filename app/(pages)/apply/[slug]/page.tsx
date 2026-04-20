@@ -69,6 +69,8 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
     const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
     const [responses, setResponses] = useState<Record<string, string>>({});
     const [applicantNameInput, setApplicantNameInput] = useState("");
+    const [honeypot, setHoneypot] = useState("");
+    const [formRenderedAt] = useState(() => new Date().toISOString());
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -379,19 +381,19 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
             });
 
             // 2. Insert into Database
-            const { data: newApp, error: insertError } = await supabase
-                .from("applications")
-                .insert({
-                    program_id: program.id,
-                    applicant_email: applicantEmail,
-                    applicant_name: applicantName,
-                    company_name: companyName,
-                    answers: responses,
-                    status: "new",
-                    submitted_at: new Date().toISOString()
-                })
-                .select()
-                .single();
+            const { data: newApp, error: insertError } = await supabase.rpc(
+                "submit_application_secure",
+                {
+                    p_program_id: program.id,
+                    p_applicant_email: applicantEmail,
+                    p_applicant_name: applicantName,
+                    p_company_name: companyName,
+                    p_answers: responses,
+                    p_submitted_at: new Date().toISOString(),
+                    p_rendered_at: formRenderedAt,
+                    p_honeypot: honeypot,
+                }
+            );
 
             if (insertError) throw insertError;
 
@@ -623,6 +625,17 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
 
             <div className="max-w-3xl mx-auto px-6 -mt-32 relative z-10">
                 <div className="bg-white rounded-2xl p-6 md:p-10 shadow-xl shadow-blue-900/5 space-y-6 border border-gray-100">
+                    <div className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden" aria-hidden="true">
+                        <label htmlFor="website">Website</label>
+                        <input
+                            id="website"
+                            name="website"
+                            tabIndex={-1}
+                            autoComplete="off"
+                            value={honeypot}
+                            onChange={(e) => setHoneypot(e.target.value)}
+                        />
+                    </div>
                     {/* Header Info */}
                     <div className="flex flex-col items-center text-center space-y-4 pb-6 border-b border-gray-100">
                         <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-lg -mt-16 border border-gray-100 overflow-hidden">

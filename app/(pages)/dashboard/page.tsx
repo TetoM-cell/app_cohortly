@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import type { ColumnFiltersState, SortingState } from '@tanstack/react-table';
 import { Plus, Rocket, Loader2, UsersRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -34,6 +35,12 @@ const mockProgram = {
 
 import { Suspense } from 'react';
 
+const DEFAULT_PAGE_SIZE = 50;
+
+function isDateRangeFilter(value: unknown): value is { from?: Date; to?: Date } {
+    return typeof value === 'object' && value !== null && ('from' in value || 'to' in value);
+}
+
 function DashboardContent() {
     const searchParams = useSearchParams();
     const programId = searchParams.get('id');
@@ -46,7 +53,15 @@ function DashboardContent() {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isScoring, setIsScoring] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState<10 | 25 | 50 | 100>(DEFAULT_PAGE_SIZE);
+    const [totalApplicationsCount, setTotalApplicationsCount] = useState(0);
+    const [queryState, setQueryState] = useState<{ sorting: SortingState; columnFilters: ColumnFiltersState }>({
+        sorting: [],
+        columnFilters: [],
+    });
     const cancelScoringRef = useRef(false);
+    const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         const checkUser = async () => {
@@ -99,6 +114,8 @@ function DashboardContent() {
         if (!programId) return;
         setLoading(true);
         try {
+            const from = (currentPage - 1) * pageSize;
+            const to = from + pageSize - 1;
             const { data: progData, error: progError } = await supabase
                 .from('programs')
                 .select('*')
@@ -113,40 +130,114 @@ function DashboardContent() {
                 return;
             }
 
-            const { data: rubricData, error: rubricError } = await supabase
-                .from('rubrics')
-                .select('*')
-                .eq('program_id', programId);
+            const [
+                { data: rubricData, error: rubricError },
+                { data: reviewersData, error: reviewersError },
+                { data: thresholdData, error: thresholdError },
+                { data: formData, error: formError },
+                { data: appsData, error: appsError, count: appsCount },
+            ] = await Promise.all([
+                supabase
+                    .from('rubrics')
+                    .select('*')
+                    .eq('program_id', programId),
+                supabase
+                    .from('program_reviewers')
+                    .select(`
+                        user_id,
+                        profiles:user_id ( full_name, email, avatar_url )
+                    `)
+                    .eq('program_id', programId),
+                supabase
+                    .from('threshold_rules')
+                    .select('*')
+                    .eq('program_id', programId),
+                supabase
+                    .from('forms')
+                    .select('fields')
+                    .eq('program_id', programId)
+                    .maybeSingle(),
+                (() => {
+                    let appsQuery = supabase
+                        .from('applications')
+                        .select('*', { count: 'exact' })
+                        .eq('program_id', programId);
+
+                    queryState.columnFilters.forEach((filter) => {
+                        if (filter.id === 'applicantName' && typeof filter.value === 'string' && filter.value.trim()) {
+                            appsQuery = appsQuery.ilike('applicant_name', `%${filter.value.trim()}%`);
+                        }
+
+                        if (filter.id === 'companyName' && Array.isArray(filter.value) && filter.value.length > 0) {
+                            appsQuery = appsQuery.in('company_name', filter.value);
+                        }
+
+                        if (filter.id === 'status' && Array.isArray(filter.value) && filter.value.length > 0) {
+                            appsQuery = appsQuery.in('status', filter.value.map((status) => String(status).toLowerCase()));
+                        }
+
+                        if (filter.id === 'overallScore' && Array.isArray(filter.value) && filter.value.length === 2) {
+                            appsQuery = appsQuery
+                                .gte('overall_ai_score', Number(filter.value[0]))
+                                .lte('overall_ai_score', Number(filter.value[1]));
+                        }
+
+                        if (filter.id === 'submittedDate' && isDateRangeFilter(filter.value)) {
+                            if (filter.value.from) {
+                                appsQuery = appsQuery.gte('submitted_at', filter.value.from.toISOString());
+                            }
+                            if (filter.value.to) {
+                                const inclusiveEnd = new Date(filter.value.to);
+                                inclusiveEnd.setHours(23, 59, 59, 999);
+                                appsQuery = appsQuery.lte('submitted_at', inclusiveEnd.toISOString());
+                            }
+                        }
+                    });
+
+                    const primarySort = queryState.sorting[0];
+                    const sortableColumnMap: Record<string, string> = {
+                        applicantName: 'applicant_name',
+                        companyName: 'company_name',
+                        overallScore: 'overall_ai_score',
+                        status: 'status',
+                        submittedDate: 'submitted_at',
+                    };
+
+                    const sortColumn = primarySort ? sortableColumnMap[primarySort.id] : undefined;
+
+                    if (sortColumn) {
+                        appsQuery = appsQuery.order(sortColumn, { ascending: !primarySort.desc });
+                    } else {
+                        appsQuery = appsQuery.order('submitted_at', { ascending: false });
+                    }
+
+                    return appsQuery.range(from, to);
+                })(),
+            ]);
 
             if (rubricError) throw new Error(`Failed to fetch rubrics: ${rubricError.message}`);
-
-            // Fetch Reviewers
-            const { data: reviewersData, error: reviewersError } = await supabase
-                .from('program_reviewers')
-                .select(`
-                    user_id,
-                    profiles:user_id ( full_name, email, avatar_url )
-                `)
-                .eq('program_id', programId);
-
             if (reviewersError) throw new Error(`Failed to fetch reviewers: ${reviewersError.message}`);
-
-            // Fetch Threshold Rules
-            const { data: thresholdData, error: thresholdError } = await supabase
-                .from('threshold_rules')
-                .select('*')
-                .eq('program_id', programId);
-
             if (thresholdError) throw new Error(`Failed to fetch threshold rules: ${thresholdError.message}`);
 
-            // Fetch Form Structure
-            const { data: formData, error: formError } = await supabase
-                .from('forms')
-                .select('fields')
-                .eq('program_id', programId)
-                .maybeSingle();
-
             if (formError) console.error('Error fetching form:', formError);
+
+            if (appsError) throw new Error(`Failed to fetch applications: ${appsError.message}`);
+            setTotalApplicationsCount(appsCount ?? 0);
+
+            let commentPresenceData: { application_id: string }[] = [];
+            if (appsData && appsData.length > 0) {
+                const { data: fetchedCommentPresence, error: commentsError } = await supabase
+                    .from('comments')
+                    .select('application_id')
+                    .in('application_id', appsData.map(a => a.id));
+
+                if (commentsError) throw new Error(`Failed to fetch comments: ${commentsError.message}`);
+                commentPresenceData = fetchedCommentPresence || [];
+            }
+
+            const commentedApplicationIds = new Set(
+                commentPresenceData.map((comment) => comment.application_id)
+            );
 
             setProgram({
                 ...progData,
@@ -164,34 +255,6 @@ function DashboardContent() {
                 })
             });
 
-            const { data: appsData, error: appsError } = await supabase
-                .from('applications')
-                .select('*')
-                .eq('program_id', programId)
-                .order('submitted_at', { ascending: false });
-
-            if (appsError) throw new Error(`Failed to fetch applications: ${appsError.message}`);
-
-            // Fetch comments for these applications only if we have applications
-            let commentsData: any[] = [];
-            if (appsData && appsData.length > 0) {
-                const { data: fetchedComments, error: commentsError } = await supabase
-                    .from('comments')
-                    .select(`
-                        id,
-                        application_id,
-                        text,
-                        user_id,
-                        column_id,
-                        created_at,
-                        user:profiles!user_id ( full_name, email, avatar_url )
-                    `)
-                    .in('application_id', appsData.map(a => a.id));
-
-                if (commentsError) throw new Error(`Failed to fetch comments: ${commentsError.message}`);
-                commentsData = fetchedComments || [];
-            }
-
             const mappedApps: Application[] = (appsData || []).map(app => {
                 // Map score objects
                 const scoreEntries = Object.entries(app.scores || {});
@@ -199,24 +262,6 @@ function DashboardContent() {
                 scoreEntries.forEach(([key, value]: [string, any]) => {
                     const rawScore = typeof value === 'object' ? value.score : value;
                     mappedScores[key] = typeof rawScore === 'string' ? parseFloat(rawScore) : rawScore;
-                });
-
-                // Group comments by column_id
-                const appComments: Record<string, any[]> = {};
-                (commentsData || []).filter(c => c.application_id === app.id).forEach(c => {
-                    const colId = c.column_id || 'general';
-                    if (!appComments[colId]) appComments[colId] = [];
-                    appComments[colId].push({
-                        id: c.id,
-                        text: c.text,
-                        userId: c.user_id,
-                        createdAt: c.created_at,
-                        user: buildUserDisplay({
-                            fullName: (c.user as any)?.full_name,
-                            email: (c.user as any)?.email,
-                            avatarUrl: (c.user as any)?.avatar_url
-                        })
-                    });
                 });
 
                 // Get overall score safely
@@ -231,7 +276,7 @@ function DashboardContent() {
                     status: app.status ? (app.status.charAt(0).toUpperCase() + app.status.slice(1)) : 'New',
                     submittedDate: app.submitted_at || app.created_at || new Date().toISOString(),
                     scores: mappedScores,
-                    comments: appComments,
+                    hasComment: commentedApplicationIds.has(app.id),
                     answers: app.answers,
                     aiExplanation: app.ai_explanation
                 } as Application;
@@ -303,12 +348,23 @@ function DashboardContent() {
         } finally {
             setLoading(false);
         }
-    }, [programId]);
+    }, [currentPage, pageSize, programId, queryState]);
+
+    const scheduleRefresh = useCallback(() => {
+        if (refreshTimeoutRef.current) {
+            clearTimeout(refreshTimeoutRef.current);
+        }
+
+        refreshTimeoutRef.current = setTimeout(() => {
+            fetchData();
+        }, 350);
+    }, [fetchData]);
 
     useEffect(() => {
         if (!programId) {
             setData([]);
             setProgram(mockProgram);
+            setTotalApplicationsCount(0);
             return;
         }
 
@@ -319,7 +375,7 @@ function DashboardContent() {
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'applications', filter: `program_id=eq.${programId}` },
-                () => fetchData()
+                () => scheduleRefresh()
             )
             .subscribe();
 
@@ -328,15 +384,73 @@ function DashboardContent() {
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'comments' },
-                () => fetchData()
+                () => scheduleRefresh()
             )
             .subscribe();
 
         return () => {
+            if (refreshTimeoutRef.current) {
+                clearTimeout(refreshTimeoutRef.current);
+                refreshTimeoutRef.current = null;
+            }
             supabase.removeChannel(appChannel);
             supabase.removeChannel(commentChannel);
         };
+    }, [programId, fetchData, scheduleRefresh]);
+
+    useEffect(() => {
+        setCurrentPage(1);
     }, [programId]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [queryState]);
+
+    useEffect(() => {
+        const maxPage = Math.max(1, Math.ceil(totalApplicationsCount / pageSize));
+        if (currentPage > maxPage) {
+            setCurrentPage(maxPage);
+        }
+    }, [currentPage, pageSize, totalApplicationsCount]);
+
+    const loadApplicantComments = useCallback(async (applicantId: string) => {
+        const { data: fetchedComments, error } = await supabase
+            .from('comments')
+            .select(`
+                id,
+                application_id,
+                text,
+                user_id,
+                column_id,
+                created_at,
+                user:profiles!user_id ( full_name, email, avatar_url )
+            `)
+            .eq('application_id', applicantId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        const groupedComments: Record<string, any[]> = {};
+        (fetchedComments || []).forEach((comment) => {
+            const colId = comment.column_id || 'general';
+            if (!groupedComments[colId]) groupedComments[colId] = [];
+            groupedComments[colId].push({
+                id: comment.id,
+                text: comment.text,
+                userId: comment.user_id,
+                createdAt: comment.created_at,
+                user: buildUserDisplay({
+                    fullName: (comment.user as any)?.full_name,
+                    email: (comment.user as any)?.email,
+                    avatarUrl: (comment.user as any)?.avatar_url
+                })
+            });
+        });
+
+        return groupedComments;
+    }, []);
 
     const handleComment = useCallback(async (id: string, text: string, columnId?: string) => {
         if (!user) return;
@@ -628,7 +742,7 @@ function DashboardContent() {
             <DashboardHeader
                 cohortName={program?.id ? program.name : ""}
                 isActive={program?.status === 'published'}
-                totalApplicants={data.length}
+                totalApplicants={totalApplicationsCount}
                 avgScore={avgScore}
                 acceptedCount={acceptedCount}
                 shortlistCount={shortlistCount}
@@ -667,6 +781,16 @@ function DashboardContent() {
                                 onCohortRename={handleCohortRename}
                                 onExport={handleExport}
                                 onImport={() => setIsImportModalOpen(true)}
+                                currentPage={currentPage}
+                                pageSize={pageSize}
+                                totalCount={totalApplicationsCount}
+                                onPageChange={setCurrentPage}
+                                onPageSizeChange={(nextPageSize) => {
+                                    setPageSize(nextPageSize);
+                                    setCurrentPage(1);
+                                }}
+                                loadApplicantComments={loadApplicantComments}
+                                onQueryStateChange={setQueryState}
                             />
                         </div>
                     </>

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
     Plus, GripVertical, Trash2, Settings, ChevronDown, ChevronUp,
-    Copy, MoreVertical, Type, Upload, Image as ImageIcon, X, Users
+    Copy, MoreVertical, Type, Upload, Image as ImageIcon, X, Users, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -129,22 +129,25 @@ function SortableQuestion({
                     <Icon className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0 pr-12 pt-0.5">
-                    <textarea
-                        value={question.text}
-                        onChange={(e) => {
-                            onUpdateText(sectionId, question.id, e.target.value);
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                        }}
-                        rows={1}
-                        className="w-full font-bold text-[15px] bg-transparent border-none p-0 outline-none text-gray-900 placeholder:text-gray-300 resize-none overflow-hidden leading-relaxed"
-                        placeholder="Enter question text..."
-                        onFocus={(e) => {
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                        }}
-                        style={{ height: 'auto' }}
-                    />
+                    <div className="flex items-start gap-1.5 group/q-edit">
+                        <textarea
+                            value={question.text}
+                            onChange={(e) => {
+                                onUpdateText(sectionId, question.id, e.target.value);
+                                e.target.style.height = 'auto';
+                                e.target.style.height = e.target.scrollHeight + 'px';
+                            }}
+                            rows={1}
+                            className="flex-1 min-w-0 font-bold text-[15px] bg-transparent border-none p-0 outline-none text-gray-900 placeholder:text-gray-300 resize-none overflow-hidden leading-relaxed"
+                            placeholder="Enter question text..."
+                            onFocus={(e) => {
+                                e.target.style.height = 'auto';
+                                e.target.style.height = e.target.scrollHeight + 'px';
+                            }}
+                            style={{ height: 'auto' }}
+                        />
+                        <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/q-edit:opacity-100 transition-opacity flex-shrink-0 mt-1" />
+                    </div>
                     {question.description && (
                         <p className="text-xs text-gray-400 mt-1 font-medium">{question.description}</p>
                     )}
@@ -252,21 +255,27 @@ function DroppableSection({
                         <div {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing p-1.5 -ml-1.5 hover:bg-gray-100 rounded-lg transition-colors opacity-0 group-hover/header:opacity-100">
                             <GripVertical className="w-4 h-4 text-gray-400" />
                         </div>
-                        <div className="flex-1 space-y-1">
-                            <input
-                                type="text"
-                                value={section.title}
-                                onChange={(e) => onUpdateTitle(section.id, e.target.value)}
-                                className="text-lg font-bold text-gray-900 bg-transparent border-none p-0 outline-none w-full placeholder:text-gray-300 transition-colors focus:text-black"
-                                placeholder="Section Title"
-                            />
-                            <input
-                                type="text"
-                                value={section.description}
-                                onChange={(e) => onUpdateDescription(section.id, e.target.value)}
-                                placeholder="Add a description for this section..."
-                                className="w-full text-sm text-gray-500 bg-transparent border-none p-0 outline-none placeholder:text-gray-300 font-medium"
-                            />
+                        <div className="flex-1 space-y-1 min-w-0">
+                            <div className="flex items-center gap-1.5 group/title-edit">
+                                <input
+                                    type="text"
+                                    value={section.title}
+                                    onChange={(e) => onUpdateTitle(section.id, e.target.value)}
+                                    className="flex-1 min-w-0 text-lg font-bold text-gray-900 bg-transparent border-none p-0 outline-none placeholder:text-gray-300 transition-colors focus:text-black"
+                                    placeholder="Section Title"
+                                />
+                                <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/title-edit:opacity-100 transition-opacity flex-shrink-0" />
+                            </div>
+                            <div className="flex items-center gap-1.5 group/desc-edit">
+                                <input
+                                    type="text"
+                                    value={section.description}
+                                    onChange={(e) => onUpdateDescription(section.id, e.target.value)}
+                                    placeholder="Add a description for this section..."
+                                    className="flex-1 min-w-0 text-sm text-gray-500 bg-transparent border-none p-0 outline-none placeholder:text-gray-300 font-medium"
+                                />
+                                <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/desc-edit:opacity-100 transition-opacity flex-shrink-0" />
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -282,7 +291,7 @@ function DroppableSection({
                         </button>
                         <button
                             onClick={() => onDeleteSection(section.id)}
-                            className="p-2 hover:bg-red-50 rounded-lg transition-colors text-gray-400 hover:text-red-500"
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-400 hover:text-red-600"
                         >
                             <Trash2 className="w-4 h-4" />
                         </button>
@@ -497,20 +506,24 @@ export function FormCanvas({
                                 </div>
                             </div>
                             <div className="space-y-4 max-w-2xl">
-                                <input
-                                    type="text"
-                                    placeholder="Application Title"
-                                    className="w-full text-4xl font-black bg-transparent border-none p-0 placeholder:text-gray-200 outline-none focus:ring-0 text-gray-900 tracking-tight"
-                                    value={cohortData.name}
-                                    onChange={(e) => setCohortData({ ...cohortData, name: e.target.value })}
-                                />
-                                <div className="text-lg">
+                                <div className="flex items-center gap-2 group/cover-title-edit">
+                                    <input
+                                        type="text"
+                                        placeholder="Application Title"
+                                        className="flex-1 min-w-0 text-4xl font-black bg-transparent border-none p-0 placeholder:text-gray-200 outline-none focus:ring-0 text-gray-900 tracking-tight"
+                                        value={cohortData.name}
+                                        onChange={(e) => setCohortData({ ...cohortData, name: e.target.value })}
+                                    />
+                                    <Pencil className="w-4 h-4 text-gray-300 opacity-0 group-hover/cover-title-edit:opacity-100 transition-opacity flex-shrink-0" />
+                                </div>
+                                <div className="text-lg relative group/cover-desc-edit">
                                     <textarea
                                         placeholder="Add a description or welcome message..."
                                         className="w-full min-h-[80px] bg-transparent border-none p-0 placeholder:text-gray-300 outline-none resize-none leading-relaxed text-gray-600 font-medium"
                                         value={cohortData.description}
                                         onChange={(e) => setCohortData({ ...cohortData, description: e.target.value })}
                                     />
+                                    <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/cover-desc-edit:opacity-100 transition-opacity absolute top-0 right-0" />
                                 </div>
                             </div>
                             
@@ -677,17 +690,23 @@ export function FormCanvas({
                             </button>
                         </div>
                         <div className="space-y-4 ml-14">
-                            <input
-                                type="text"
-                                placeholder="Thank you message"
-                                className="w-full text-2xl font-bold bg-transparent border-none p-0 placeholder:text-gray-200 outline-none focus:ring-0 text-gray-900"
-                                defaultValue="Thank you for applying!"
-                            />
-                            <textarea
-                                placeholder="Add a closing message..."
-                                className="w-full min-h-[60px] bg-transparent border-none p-0 placeholder:text-gray-300 outline-none resize-none text-sm font-medium leading-relaxed text-gray-600"
-                                defaultValue="We'll review your application and get back to you soon."
-                            />
+                            <div className="flex items-center gap-2 group/ty-title-edit">
+                                <input
+                                    type="text"
+                                    placeholder="Thank you message"
+                                    className="flex-1 min-w-0 text-2xl font-bold bg-transparent border-none p-0 placeholder:text-gray-200 outline-none focus:ring-0 text-gray-900"
+                                    defaultValue="Thank you for applying!"
+                                />
+                                <Pencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover/ty-title-edit:opacity-100 transition-opacity flex-shrink-0" />
+                            </div>
+                            <div className="relative group/ty-msg-edit">
+                                <textarea
+                                    placeholder="Add a closing message..."
+                                    className="w-full min-h-[60px] bg-transparent border-none p-0 placeholder:text-gray-300 outline-none resize-none text-sm font-medium leading-relaxed text-gray-600"
+                                    defaultValue="We'll review your application and get back to you soon."
+                                />
+                                <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/ty-msg-edit:opacity-100 transition-opacity absolute top-0 right-0" />
+                            </div>
                         </div>
                     </div>
                 )}

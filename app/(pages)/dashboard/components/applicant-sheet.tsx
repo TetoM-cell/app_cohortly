@@ -94,6 +94,7 @@ export function ApplicantSheet({
     const [scoresRevealed, setScoresRevealed] = useState(false)
     const [logs, setLogs] = useState<any[]>([])
     const [loadingLogs, setLoadingLogs] = useState(false)
+    const [localComments, setLocalComments] = useState<Record<string, Comment[]>>({})
     const inputRef = useRef<HTMLInputElement>(null)
     const commentsSectionRef = useRef<HTMLDivElement>(null)
 
@@ -120,6 +121,7 @@ export function ApplicantSheet({
         setCommentText("")
         setShowMentionDropdown(false)
         setScoresRevealed(false)
+        setLocalComments((applicant.comments || {}) as Record<string, Comment[]>)
         fetchLogs()
 
         // Real-time logs
@@ -136,6 +138,10 @@ export function ApplicantSheet({
             supabase.removeChannel(logChannel);
         };
     }, [applicant?.id, fetchLogs])
+
+    useEffect(() => {
+        setLocalComments((applicant?.comments || {}) as Record<string, Comment[]>)
+    }, [applicant?.comments, applicant?.id])
 
     // Auto-scroll to comments when a field is selected
     useEffect(() => {
@@ -171,8 +177,25 @@ export function ApplicantSheet({
 
     const handleSendComment = () => {
         if (!commentText.trim()) return
+        const targetColumn = activeField || 'general'
+        const optimisticComment: Comment = {
+            id: `temp-${Date.now()}`,
+            text: commentText,
+            userId: userProfile?.id || 'current-user',
+            createdAt: new Date().toISOString(),
+            user: {
+                name: userProfile?.full_name || userProfile?.name || 'You',
+                avatarUrl: userProfile?.avatar_url || userProfile?.avatarUrl,
+            }
+        }
+
+        setLocalComments((prev) => ({
+            ...prev,
+            [targetColumn]: [...(prev[targetColumn] || []), optimisticComment],
+        }))
+
         if (tableMeta?.onComment) {
-            tableMeta.onComment(applicant.id, commentText, activeField || 'general')
+            tableMeta.onComment(applicant.id, commentText, targetColumn)
             setCommentText("")
             setShowMentionDropdown(false)
             setMentionSearch("")
@@ -232,7 +255,7 @@ export function ApplicantSheet({
         }
     }
 
-    const currentComments = applicant.comments?.[activeField || 'general'] || []
+    const currentComments = localComments?.[activeField || 'general'] || []
 
     const InnerContent = (
         <div className="flex flex-col h-full bg-white overflow-hidden">
@@ -346,7 +369,7 @@ export function ApplicantSheet({
                             {rubric.map((c) => {
                                 const score = applicant.scores?.[c.id] || 0;
                                 const isActive = activeField === c.id;
-                                const commentCount = applicant.comments?.[c.id]?.length || 0;
+                                const commentCount = localComments?.[c.id]?.length || 0;
 
                                 return (
                                     <div
@@ -409,10 +432,10 @@ export function ApplicantSheet({
                                     <div>
                                         <div className="flex items-center gap-1.5">
                                             <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Current Status</div>
-                                            {(applicant.comments?.['status']?.length || 0) > 0 && (
+                                            {(localComments?.['status']?.length || 0) > 0 && (
                                                 <div className="flex items-center gap-0.5 text-blue-500">
                                                     <MessageSquare className="w-2.5 h-2.5 fill-current" />
-                                                    <span className="text-[10px] font-bold">{applicant.comments?.['status']?.length}</span>
+                                                    <span className="text-[10px] font-bold">{localComments?.['status']?.length}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -684,7 +707,13 @@ export function ApplicantSheet({
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-6 w-6 text-gray-400 hover:text-red-500 hover:bg-red-50"
-                                                        onClick={() => tableMeta?.onDeleteComment?.(comment.id)}
+                                                        onClick={() => {
+                                                            setLocalComments((prev) => ({
+                                                                ...prev,
+                                                                [activeField || 'general']: (prev[activeField || 'general'] || []).filter((existing) => existing.id !== comment.id)
+                                                            }))
+                                                            tableMeta?.onDeleteComment?.(comment.id)
+                                                        }}
                                                     >
                                                         <Trash2 className="w-3 h-3" />
                                                     </Button>

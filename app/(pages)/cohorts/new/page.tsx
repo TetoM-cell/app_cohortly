@@ -12,22 +12,21 @@ import { supabase } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ScalingWrapper } from "@/components/scaling-wrapper";
+import { Suspense } from "react";
 
-export const STEPS = [
+const STEPS = [
     { id: 1, title: "Cohort Basics" },
     { id: 2, title: "Form Builder" },
     { id: 3, title: "Rubric & AI Scoring" },
     { id: 4, title: "Settings & Launch" },
 ];
 
-export interface Criterion {
+interface Criterion {
     id: string;
     name: string;
     weight: number;
     description: string;
 }
-
-import { Suspense } from 'react';
 
 function NewCohortPageContent() {
     const router = useRouter();

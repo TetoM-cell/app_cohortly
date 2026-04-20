@@ -194,15 +194,47 @@ function SidebarContent() {
                 const storedRead = localStorage.getItem(`cohortly_read_${user.id}`);
                 const readSet = new Set<string>(storedRead ? JSON.parse(storedRead) : []);
 
-                // Fetch Apps
-                const { data: apps } = await supabase.from('applications').select('id');
-                const appIds = (apps || []).map(a => `app_${a.id}`);
+                const { data: ownedPrograms } = await supabase
+                    .from('programs')
+                    .select('id')
+                    .eq('owner_id', user.id);
 
-                // Fetch Comments
-                const { data: comments } = await supabase.from('comments').select('id');
-                const commentIds = (comments || []).map(c => `comment_${c.id}`);
+                const programIds = (ownedPrograms || []).map((program) => program.id);
 
-                const allIds = [...appIds, ...commentIds];
+                const appIds: string[] = [];
+                const commentIds: string[] = [];
+                let invitationIds: string[] = [];
+
+                if (programIds.length > 0) {
+                    const { data: apps } = await supabase
+                        .from('applications')
+                        .select('id')
+                        .in('program_id', programIds);
+
+                    const rawAppIds = (apps || []).map(a => a.id);
+                    rawAppIds.forEach((id) => appIds.push(`app_${id}`));
+
+                    if (rawAppIds.length > 0) {
+                        const { data: comments } = await supabase
+                            .from('comments')
+                            .select('id')
+                            .in('application_id', rawAppIds);
+
+                        (comments || []).forEach((comment) => {
+                            commentIds.push(`comment_${comment.id}`);
+                        });
+                    }
+                }
+
+                const { data: notifications } = await supabase
+                    .from('notifications')
+                    .select('id')
+                    .eq('recipient_id', user.id)
+                    .eq('status', 'active');
+
+                invitationIds = (notifications || []).map((notification) => `notif_${notification.id}`);
+
+                const allIds = [...appIds, ...commentIds, ...invitationIds];
                 const unread = allIds.filter(id => !readSet.has(id)).length;
 
                 setUnreadCount(unread);
@@ -213,8 +245,7 @@ function SidebarContent() {
 
         fetchUnreadCount();
 
-        // Listen for changes (every few mins or on mount)
-        const interval = setInterval(fetchUnreadCount, 30000);
+        const interval = setInterval(fetchUnreadCount, 120000);
         return () => clearInterval(interval);
     }, [user]);
 
@@ -305,6 +336,9 @@ function SidebarContent() {
     }, [user, activeProgramId, pathname]);
 
     const handleDeleteCohort = async (id: string) => {
+        const previous = cohorts;
+        setCohorts(prev => prev.filter(c => c.id !== id));
+
         try {
             const { error } = await supabase
                 .from('programs')
@@ -314,6 +348,7 @@ function SidebarContent() {
             if (error) throw error;
             toast.success("Program deleted");
         } catch (error: any) {
+            setCohorts(previous);
             toast.error(error.message || "Failed to delete program");
         }
     };

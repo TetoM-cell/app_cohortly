@@ -81,6 +81,13 @@ interface DataTableProps<TData extends Application> {
     onCohortRename?: (name: string) => void
     onExport?: () => void
     onImport?: () => void
+    currentPage?: number
+    pageSize?: number
+    totalCount?: number
+    onPageChange?: (page: number) => void
+    onPageSizeChange?: (pageSize: 10 | 25 | 50 | 100) => void
+    loadApplicantComments?: (applicantId: string) => Promise<Record<string, any[]>>
+    onQueryStateChange?: (queryState: { sorting: SortingState; columnFilters: ColumnFiltersState }) => void
 }
 
 export function DataTable<TData extends Application>({
@@ -105,6 +112,13 @@ export function DataTable<TData extends Application>({
     onCohortRename,
     onExport,
     onImport,
+    currentPage = 1,
+    pageSize = 50,
+    totalCount = 0,
+    onPageChange,
+    onPageSizeChange,
+    loadApplicantComments,
+    onQueryStateChange,
 }: DataTableProps<TData>) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -112,10 +126,11 @@ export function DataTable<TData extends Application>({
     const [rowSelection, setRowSelection] = React.useState({})
     const [activeApplicantId, setActiveApplicantId] = React.useState<string | null>(null)
     const [focusedRowIndex, setFocusedRowIndex] = React.useState<number>(-1)
+    const [loadedCommentsByApplicant, setLoadedCommentsByApplicant] = React.useState<Record<string, Record<string, any[]>>>({})
     const [layoutPrefs, setLayoutPrefs] = React.useState<LayoutPrefs>({
         showVerticalLines: true,
         openPagesIn: 'side-sheet',
-        loadLimit: 50,
+        loadLimit: pageSize as 10 | 25 | 50 | 100,
         layoutView: 'table',
     })
 
@@ -190,6 +205,10 @@ export function DataTable<TData extends Application>({
         }
     }, [selectedRowsCount, onSelectionChange])
 
+    React.useEffect(() => {
+        onQueryStateChange?.({ sorting, columnFilters })
+    }, [sorting, columnFilters, onQueryStateChange])
+
     // Keep focusedRowIndex in bounds when data changes
     const rows = table.getRowModel().rows;
 
@@ -208,6 +227,34 @@ export function DataTable<TData extends Application>({
             setFocusedRowIndex(rows.length - 1);
         }
     }, [rows.length, focusedRowIndex]);
+
+    React.useEffect(() => {
+        setLayoutPrefs((prev) => ({
+            ...prev,
+            loadLimit: pageSize as 10 | 25 | 50 | 100,
+        }))
+    }, [pageSize])
+
+    React.useEffect(() => {
+        if (!activeApplicantId || !loadApplicantComments || loadedCommentsByApplicant[activeApplicantId]) {
+            return
+        }
+
+        let cancelled = false
+        loadApplicantComments(activeApplicantId).then((comments) => {
+            if (cancelled) return
+            setLoadedCommentsByApplicant((prev) => ({
+                ...prev,
+                [activeApplicantId]: comments,
+            }))
+        }).catch(() => {
+            // Leave comment loading failures to the parent fetch path.
+        })
+
+        return () => {
+            cancelled = true
+        }
+    }, [activeApplicantId, loadApplicantComments, loadedCommentsByApplicant])
 
     // Wire up dashboard hotkeys
     useDashboardHotkeys({
@@ -239,7 +286,12 @@ export function DataTable<TData extends Application>({
                     onCancelScoring={onCancelScoring}
                     onSettingsClick={onSettingsClick}
                     onCohortRename={onCohortRename}
-                    onLayoutPrefsChange={(prefs) => setLayoutPrefs(prefs)}
+                    onLayoutPrefsChange={(prefs) => {
+                        setLayoutPrefs(prefs)
+                        if (prefs.loadLimit !== layoutPrefs.loadLimit) {
+                            onPageSizeChange?.(prefs.loadLimit)
+                        }
+                    }}
                     onExport={onExport}
                     onImport={onImport}
                 />
@@ -283,7 +335,7 @@ export function DataTable<TData extends Application>({
                         </TableHeader>
                         <TableBody>
                             {table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.slice(0, layoutPrefs.loadLimit).map((row, rowIndex) => (
+                                table.getRowModel().rows.map((row, rowIndex) => (
                                     <TableRow
                                         key={row.id}
                                         data-state={row.getIsSelected() && "selected"}
@@ -337,6 +389,32 @@ export function DataTable<TData extends Application>({
                         loadLimit={layoutPrefs.loadLimit}
                     />
                 )}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2 text-xs text-gray-500">
+                <span>
+                    Page {currentPage} of {Math.max(1, Math.ceil(totalCount / pageSize))} · {totalCount} applicants
+                </span>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onPageChange?.(currentPage - 1)}
+                        disabled={currentPage <= 1}
+                    >
+                        Previous
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onPageChange?.(currentPage + 1)}
+                        disabled={currentPage >= Math.max(1, Math.ceil(totalCount / pageSize))}
+                    >
+                        Next
+                    </Button>
+                </div>
             </div>
 
             {/* Floating Selection Toolbar */}
@@ -457,7 +535,18 @@ export function DataTable<TData extends Application>({
             )}
 
             <ApplicantSheet
-                applicant={data.find(a => a.id === activeApplicantId) || null}
+                applicant={(() => {
+                    const selectedApplicant = data.find(a => a.id === activeApplicantId) || null
+                    if (!selectedApplicant) return null
+
+                    const loadedComments = loadedCommentsByApplicant[selectedApplicant.id]
+                    if (!loadedComments) return selectedApplicant
+
+                    return {
+                        ...selectedApplicant,
+                        comments: loadedComments,
+                    }
+                })()}
                 isOpen={!!activeApplicantId}
                 onOpenChange={(open) => !open && setActiveApplicantId(null)}
                 rubric={program.rubric}

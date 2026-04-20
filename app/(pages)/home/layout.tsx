@@ -1,6 +1,5 @@
-import { Suspense } from "react";
-import { Sidebar } from "@/components/sidebar";
 import { ScalingWrapper } from "@/components/scaling-wrapper";
+import { SidebarShell } from "@/components/sidebar-shell";
 
 export default function HomeLayout({
     children,
@@ -9,9 +8,7 @@ export default function HomeLayout({
 }) {
     return (
         <div className="flex h-screen overflow-hidden bg-white">
-            <Suspense fallback={<div className="w-[240px] h-full bg-gray-50/50 border-r border-gray-200" />}>
-                <Sidebar />
-            </Suspense>
+            <SidebarShell />
             <ScalingWrapper className="flex-1 flex flex-col h-full overflow-hidden min-w-0 bg-zinc-50/30">
                 {children}
             </ScalingWrapper>

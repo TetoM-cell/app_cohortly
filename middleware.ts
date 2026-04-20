@@ -62,6 +62,7 @@ export async function middleware(request: NextRequest) {
             request.nextUrl.pathname.startsWith('/signup')
         const isPublicRoute = isAuthPage ||
             request.nextUrl.pathname.startsWith('/auth') ||
+            request.nextUrl.pathname.startsWith('/apply') ||
             request.nextUrl.pathname === '/'
 
         // If user is not logged in and trying to access a private route

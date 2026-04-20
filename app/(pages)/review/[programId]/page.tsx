@@ -20,6 +20,8 @@ import { MentionDropdown, Reviewer } from '@/components/ui/mention-dropdown';
 import Link from 'next/link';
 import { buildUserDisplay, getDisplayName } from '@/lib/user-display';
 
+const REVIEW_PAGE_SIZE = 25;
+
 export default function ReviewPortal({ params }: { params: Promise<{ programId: string }> }) {
     const resolvedParams = use(params);
     const programId = resolvedParams.programId;
@@ -28,6 +30,9 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<any>(null);
     const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalApplicantsCount, setTotalApplicantsCount] = useState(0);
+    const [loadedCommentsByApplicant, setLoadedCommentsByApplicant] = useState<Record<string, Record<string, Comment[]>>>({});
 
     // Review State
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -89,7 +94,8 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
     const fetchData = useCallback(async () => {
         if (!programId) return;
         try {
-            // Fetch Program details
+            const from = (currentPage - 1) * REVIEW_PAGE_SIZE;
+            const to = from + REVIEW_PAGE_SIZE - 1;
             const { data: progData, error: progError } = await supabase
                 .from('programs')
                 .select('*')
@@ -102,24 +108,46 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
                 return;
             }
 
-            // Fetch Rubric
-            const { data: rubricData } = await supabase
-                .from('rubrics')
-                .select('*')
-                .eq('program_id', programId);
+            const [
+                { data: rubricData },
+                { data: formData },
+                { data: reviewersData },
+                { data: appsData, error: appsError, count: appsCount },
+            ] = await Promise.all([
+                supabase
+                    .from('rubrics')
+                    .select('*')
+                    .eq('program_id', programId),
+                supabase
+                    .from('forms')
+                    .select('fields')
+                    .eq('program_id', programId)
+                    .maybeSingle(),
+                supabase
+                    .from('program_reviewers')
+                    .select(`user_id, profiles:user_id ( full_name, email, avatar_url )`)
+                    .eq('program_id', programId),
+                supabase
+                    .from('applications')
+                    .select('*', { count: 'exact' })
+                    .eq('program_id', programId)
+                    .range(from, to)
+                    .order('submitted_at', { ascending: false }),
+            ]);
 
-            // Fetch Form Structure
-            const { data: formData } = await supabase
-                .from('forms')
-                .select('fields')
-                .eq('program_id', programId)
-                .maybeSingle();
+            if (appsError) throw appsError;
+            setTotalApplicantsCount(appsCount ?? 0);
 
-            // Fetch Reviewers for @mentions
-            const { data: reviewersData } = await supabase
-                .from('program_reviewers')
-                .select(`user_id, profiles:user_id ( full_name, email, avatar_url )`)
-                .eq('program_id', programId);
+            let commentPresenceData: { application_id: string }[] = [];
+            if (appsData && appsData.length > 0) {
+                const { data: fetchedCommentPresence } = await supabase
+                    .from('comments')
+                    .select('application_id')
+                    .in('application_id', appsData.map(a => a.id));
+                commentPresenceData = fetchedCommentPresence || [];
+            }
+
+            const commentedApplicationIds = new Set(commentPresenceData.map((comment) => comment.application_id));
 
             setProgram({
                 ...progData,
@@ -136,47 +164,11 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
                 })
             });
 
-            // Fetch Applications
-            const { data: appsData, error: appsError } = await supabase
-                .from('applications')
-                .select('*')
-                .eq('program_id', programId)
-                .order('submitted_at', { ascending: false });
-
-            if (appsError) throw appsError;
-
-            // Fetch Comments
-            let commentsData: any[] = [];
-            if (appsData && appsData.length > 0) {
-                const { data: fetchedComments } = await supabase
-                    .from('comments')
-                    .select(`id, application_id, text, user_id, column_id, created_at, user:profiles!user_id ( full_name, email, avatar_url )`)
-                    .in('application_id', appsData.map(a => a.id));
-                commentsData = fetchedComments || [];
-            }
-
             const mappedApps: Application[] = (appsData || []).map(app => {
                 const scoreEntries = Object.entries(app.scores || {});
                 const mappedScores: any = {};
                 scoreEntries.forEach(([key, value]: [string, any]) => {
                     mappedScores[key] = typeof value === 'object' ? value.score : value;
-                });
-
-                const appComments: Record<string, any[]> = {};
-                (commentsData || []).filter(c => c.application_id === app.id).forEach(c => {
-                    const colId = c.column_id || 'general';
-                    if (!appComments[colId]) appComments[colId] = [];
-                    appComments[colId].push({
-                        id: c.id,
-                        text: c.text,
-                        userId: c.user_id,
-                        createdAt: c.created_at,
-                        user: buildUserDisplay({
-                            fullName: (c.user as any)?.full_name,
-                            email: (c.user as any)?.email,
-                            avatarUrl: (c.user as any)?.avatar_url
-                        })
-                    });
                 });
 
                 const rawOverall = app.overall_ai_score ?? app.overall_score ?? 0;
@@ -188,7 +180,8 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
                     status: app.status ? (app.status.charAt(0).toUpperCase() + app.status.slice(1)) : 'New',
                     submittedDate: app.submitted_at || app.created_at || new Date().toISOString(),
                     scores: mappedScores,
-                    comments: appComments,
+                    hasComment: commentedApplicationIds.has(app.id),
+                    comments: {},
                     answers: app.answers,
                     aiExplanation: app.ai_explanation
                 } as Application;
@@ -201,11 +194,66 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
         } finally {
             setLoading(false);
         }
-    }, [programId]);
+    }, [currentPage, programId]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    useEffect(() => {
+        setCurrentIndex(0);
+    }, [currentPage, programId]);
+
+    useEffect(() => {
+        const maxPage = Math.max(1, Math.ceil(totalApplicantsCount / REVIEW_PAGE_SIZE));
+        if (currentPage > maxPage) {
+            setCurrentPage(maxPage);
+        }
+    }, [currentPage, totalApplicantsCount]);
+
+    const loadApplicantComments = useCallback(async (applicantId: string) => {
+        if (!applicantId || loadedCommentsByApplicant[applicantId]) return;
+
+        const { data: fetchedComments, error } = await supabase
+            .from('comments')
+            .select(`id, application_id, text, user_id, column_id, created_at, user:profiles!user_id ( full_name, email, avatar_url )`)
+            .eq('application_id', applicantId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error("Error loading comments:", error);
+            return;
+        }
+
+        const groupedComments: Record<string, Comment[]> = {};
+        (fetchedComments || []).forEach((comment) => {
+            const colId = comment.column_id || 'general';
+            if (!groupedComments[colId]) groupedComments[colId] = [];
+            groupedComments[colId].push({
+                id: comment.id,
+                text: comment.text,
+                userId: comment.user_id,
+                createdAt: comment.created_at,
+                user: buildUserDisplay({
+                    fullName: (comment.user as any)?.full_name,
+                    email: (comment.user as any)?.email,
+                    avatarUrl: (comment.user as any)?.avatar_url
+                })
+            });
+        });
+
+        setLoadedCommentsByApplicant((prev) => ({
+            ...prev,
+            [applicantId]: groupedComments,
+        }));
+    }, [loadedCommentsByApplicant]);
+
+    useEffect(() => {
+        const activeApplicantId = data[currentIndex]?.id;
+        if (activeApplicantId) {
+            loadApplicantComments(activeApplicantId);
+        }
+    }, [currentIndex, data, loadApplicantComments]);
 
     // Handle Active Field changes
     useEffect(() => {
@@ -267,7 +315,7 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
         // Optimistic update
         setData(prev => prev.map(a => {
             if (a.id !== applicant.id) return a;
-            const existingComments: Comment[] = a.comments?.[colId] || [];
+            const existingComments: Comment[] = loadedCommentsByApplicant[applicant.id]?.[colId] || a.comments?.[colId] || [];
             return {
                 ...a,
                 comments: {
@@ -279,6 +327,13 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
 
         setCommentText("");
         setShowMentionDropdown(false);
+        setLoadedCommentsByApplicant((prev) => ({
+            ...prev,
+            [applicant.id]: {
+                ...(prev[applicant.id] || {}),
+                [colId]: [...(prev[applicant.id]?.[colId] || []), newCommentObj],
+            }
+        }));
 
         try {
             const { error: commentError } = await supabase.from('comments').insert({
@@ -329,7 +384,12 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
         setShowMentionDropdown(false);
     };
 
-    const applicant = data[currentIndex];
+    const baseApplicant = data[currentIndex];
+    const applicant = baseApplicant ? {
+        ...baseApplicant,
+        comments: loadedCommentsByApplicant[baseApplicant.id] || baseApplicant.comments || {},
+    } : undefined;
+    const totalPages = Math.max(1, Math.ceil(totalApplicantsCount / REVIEW_PAGE_SIZE));
 
     if (loading) {
         return <div className="flex h-screen items-center justify-center bg-gray-50"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>;
@@ -363,7 +423,7 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
                         <span className="text-[10px] font-black uppercase tracking-widest">Auto-saved</span>
                     </div>
                     <Badge variant="outline" className="bg-gray-50 text-gray-500 font-bold uppercase tracking-widest text-[10px]">
-                        Applicant {currentIndex + 1} of {data.length}
+                        Applicant {((currentPage - 1) * REVIEW_PAGE_SIZE) + currentIndex + 1} of {totalApplicantsCount}
                     </Badge>
                 </div>
             </div>
@@ -565,8 +625,16 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
             <div className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 flex items-center justify-between px-8 z-50">
                 <Button
                     variant="outline"
-                    onClick={() => { setCurrentIndex(Math.max(0, currentIndex - 1)); setActiveField(null); }}
-                    disabled={currentIndex === 0}
+                    onClick={() => {
+                        if (currentIndex > 0) {
+                            setCurrentIndex(Math.max(0, currentIndex - 1));
+                        } else if (currentPage > 1) {
+                            setCurrentPage((prev) => prev - 1);
+                            setCurrentIndex(REVIEW_PAGE_SIZE - 1);
+                        }
+                        setActiveField(null);
+                    }}
+                    disabled={currentIndex === 0 && currentPage === 1}
                     className="gap-2"
                 >
                     <ChevronLeft className="w-4 h-4" /> Previous
@@ -580,8 +648,16 @@ export default function ReviewPortal({ params }: { params: Promise<{ programId: 
 
                 <Button
                     variant="default"
-                    onClick={() => { setCurrentIndex(Math.min(data.length - 1, currentIndex + 1)); setActiveField(null); }}
-                    disabled={currentIndex === data.length - 1}
+                    onClick={() => {
+                        if (currentIndex < data.length - 1) {
+                            setCurrentIndex(Math.min(data.length - 1, currentIndex + 1));
+                        } else if (currentPage < totalPages) {
+                            setCurrentPage((prev) => prev + 1);
+                            setCurrentIndex(0);
+                        }
+                        setActiveField(null);
+                    }}
+                    disabled={currentIndex === data.length - 1 && currentPage === totalPages}
                     className="gap-2 bg-gray-900 hover:bg-gray-800 text-white"
                 >
                     Next Applicant <ChevronRight className="w-4 h-4" />

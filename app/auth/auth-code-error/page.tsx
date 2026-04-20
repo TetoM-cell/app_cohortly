@@ -38,7 +38,7 @@ export default function AuthCodeErrorPage() {
                 </div>
 
                 <p className="text-xs text-gray-400">
-                    If you keep seeing this, please contact support or check your Supabase Dashboard "Redirect URLs" settings.
+                    If you keep seeing this, please <Link href="https://getcohortly.vercel.app/support" className="text-blue-500 hover:underline">contact support</Link>.
                 </p>
             </div>
         </div>

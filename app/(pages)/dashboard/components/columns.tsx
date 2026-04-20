@@ -132,9 +132,7 @@ const AIWarning = () => (
 )
 
 const CellWithComment = ({ row, children, className }: { row: any, children: React.ReactNode, className?: string }) => {
-    // Check if there are ANY comments for this record across all possible categories (general, companyName, etc.)
-    const commentsMap = row.original.comments || {}
-    const hasComments = Object.values(commentsMap).some((comments: any) => comments.length > 0)
+    const hasComments = row.original.hasComment === true
 
     return (
         <div className={cn("relative group w-full h-full flex items-center", className)}>

@@ -34,10 +34,11 @@ export function DangerSettings() {
             }
 
             if (result.success) {
-                // Clear the client-side session and redirect
-                await supabase.auth.signOut();
+                // Clear local session only — no network call needed since the user
+                // is already deleted server-side and the session is invalid.
+                await supabase.auth.signOut({ scope: 'local' });
                 toast.success("Account deleted successfully.");
-                router.push("/login");
+                router.replace("/login");
             }
         });
     };
