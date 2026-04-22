@@ -347,16 +347,23 @@ function DashboardContent() {
         }
     }, [currentPage, pageSize, programId, queryState]);
 
+    // Keep a ref to the latest fetchData so subscriptions never need to
+    // re-register just because pagination/filter state changed.
+    const fetchDataRef = useRef(fetchData);
+    useEffect(() => {
+        fetchDataRef.current = fetchData;
+    }, [fetchData]);
+
     const scheduleRefresh = useCallback(() => {
         if (refreshTimeoutRef.current) {
             clearTimeout(refreshTimeoutRef.current);
         }
-
         refreshTimeoutRef.current = setTimeout(() => {
-            fetchData();
+            fetchDataRef.current();
         }, 350);
-    }, [fetchData]);
+    }, []); // no fetchData dep — uses ref instead
 
+    // Re-fetch whenever programId, pagination, or filter state changes.
     useEffect(() => {
         if (!programId) {
             setData([]);
@@ -364,8 +371,12 @@ function DashboardContent() {
             setTotalApplicationsCount(0);
             return;
         }
-
         fetchData();
+    }, [programId, currentPage, pageSize, queryState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Set up realtime subscriptions once per programId only.
+    useEffect(() => {
+        if (!programId) return;
 
         const appChannel = supabase
             .channel(`apps-${programId}`)
@@ -393,7 +404,7 @@ function DashboardContent() {
             supabase.removeChannel(appChannel);
             supabase.removeChannel(commentChannel);
         };
-    }, [programId, fetchData, scheduleRefresh]);
+    }, [programId, scheduleRefresh]);
 
     useEffect(() => {
         setCurrentPage(1);
