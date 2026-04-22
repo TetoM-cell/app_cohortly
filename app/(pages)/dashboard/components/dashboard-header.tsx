@@ -40,21 +40,6 @@ export function DashboardHeader({
                 <div className="relative min-w-0 flex items-center flex-1">
                     <div className="font-semibold text-gray-900 flex items-center gap-2 min-w-0">
                         <span className="truncate">{cohortName || <span className="text-gray-400 font-normal italic">No cohort selected</span>}</span>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-100 cursor-help shrink-0">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-tighter">Beta Access</span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-xs p-3">
-                                <p className="font-bold text-xs mb-1">Early Access Program</p>
-                                <p className="text-[11px] leading-relaxed text-gray-500">
-                                    You have full access to all industrial features during the beta. 
-                                    AI-powered reviews are subject to <strong>fair-usage soft limits</strong> to ensure stability.
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
                     </div>
                 </div>
 

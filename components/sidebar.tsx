@@ -293,7 +293,7 @@ function SidebarContent() {
                         console.error('[Sidebar] Error fetching programs:', error.message || error);
                     }
                 } else if (data) {
-                    const isActionRoute = pathname.startsWith('/cohorts/new') || pathname.startsWith('/admin');
+                    const isActionRoute = pathname.startsWith('/cohorts/new');
                     const isAllowedBase = ['/home', '/inbox', '/settings', '/search', '/apply', '/docs', '/releases', '/support'].includes(pathname);
                     const isAllowed = isAllowedBase || isActionRoute;
 

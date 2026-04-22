@@ -110,18 +110,18 @@ export function BillingSettings() {
     return (
         <div className="space-y-8 pb-20">
             <div>
-                <h3 className="text-lg font-bold tracking-tight text-gray-900">Beta Status & Usage</h3>
+                <h3 className="text-lg font-bold tracking-tight text-gray-900">Plan & Usage</h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                    Cohortly is currently in early access. All premium features are unlocked for beta testers.
+                    Manage your subscription, usage, and payment details.
                 </p>
             </div>
 
             <Separator />
 
-            {/* Current Plan - Beta */}
+            {/* Current Plan */}
             <div className="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
                 <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-gray-900">Current Access</h4>
+                    <h4 className="text-sm font-semibold text-gray-900">Current Plan</h4>
                     <p className="text-xs text-gray-500">
                         Information about your current account privileges.
                     </p>
@@ -134,17 +134,17 @@ export function BillingSettings() {
                         </div>
                         <div className="space-y-2 relative z-10">
                             <div className="flex items-center gap-2">
-                                <span className="text-md font-bold text-gray-900">Early Access Beta</span>
-                                <Badge variant="secondary" className="bg-emerald-500 text-white border-none text-[9px] font-bold px-1.5 h-3.5 animate-pulse">
+                                <span className="text-md font-bold text-gray-900">{subscription.plan}</span>
+                                <Badge variant="secondary" className="bg-emerald-500 text-white border-none text-[9px] font-bold px-1.5 h-3.5">
                                     ACTIVE
                                 </Badge>
                             </div>
                             <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-black text-gray-900">$0</span>
-                                <span className="text-sm text-gray-400 font-medium">/ forever during beta</span>
+                                <span className="text-3xl font-black text-gray-900">{subscription.price}</span>
+                                <span className="text-sm text-gray-400 font-medium">/ {subscription.period}</span>
                             </div>
                             <p className="text-[11px] text-emerald-700 font-medium max-w-sm">
-                                Thank you for being an early adopter! You have full access to all industrial-grade tools and AI features.
+                                You have full access to all industrial-grade tools and AI features.
                             </p>
                         </div>
                     </div>
@@ -156,9 +156,9 @@ export function BillingSettings() {
             {/* Usage */}
             <div className="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
                 <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-gray-900">Fair Usage & Limits</h4>
+                    <h4 className="text-sm font-semibold text-gray-900">Usage & Limits</h4>
                     <p className="text-xs text-gray-500">
-                        Details on resource consumption and platform stability.
+                        Details on resource consumption and platform limits.
                     </p>
                 </div>
 
@@ -166,15 +166,15 @@ export function BillingSettings() {
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-xs">
                             <span className="font-bold text-gray-400 uppercase tracking-wider">Applications Received</span>
-                            <span className="text-emerald-600 font-bold uppercase tracking-widest text-[10px]">
-                                Unlimited
+                            <span className="text-gray-600 font-bold uppercase tracking-widest text-[10px]">
+                                {subscription.usage.current} / {subscription.usage.limit}
                             </span>
                         </div>
                         <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 w-[15%] transition-all" />
+                            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(subscription.usage.current / subscription.usage.limit) * 100}%` }} />
                         </div>
                         <p className="text-[11px] text-gray-500 leading-relaxed">
-                            We do not charge for application volume during the beta period. Scale your programs as needed.
+                            Your plan allows up to {subscription.usage.limit} applications per billing cycle.
                         </p>
                     </div>
 
@@ -194,23 +194,35 @@ export function BillingSettings() {
 
             <Separator />
 
-            {/* Payment Method - Disabled for Beta */}
+            {/* Payment Method */}
             <div className="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
                 <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-gray-400">Payment Methods</h4>
-                    <p className="text-xs text-gray-400">
-                        Payments are disabled during the beta phase.
+                    <h4 className="text-sm font-semibold text-gray-900">Payment Method</h4>
+                    <p className="text-xs text-gray-500">
+                        Manage your payment method and billing details.
                     </p>
                 </div>
 
-                <div className="md:col-span-2 max-w-2xl pt-2 opacity-50 grayscale pointer-events-none">
-                    <div className="flex items-center justify-between p-4 border border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                <div className="md:col-span-2 max-w-2xl pt-2">
+                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-gray-50/50">
                         <div className="flex items-center gap-4">
                             <div className="p-2 bg-white rounded-lg border border-gray-100">
-                                <CreditCard className="w-5 h-4 text-gray-300" />
+                                <CreditCard className="w-5 h-4 text-gray-500" />
                             </div>
-                            <p className="text-xs font-medium text-gray-400 italic">No payment method required</p>
+                            <div>
+                                <p className="text-sm font-semibold text-gray-900">{paymentMethod.brand} •••• {paymentMethod.last4}</p>
+                                <p className="text-xs text-gray-400">Expires {paymentMethod.expiry}</p>
+                            </div>
                         </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleUpdatePaymentMethod}
+                            disabled={isLoading}
+                            className="text-xs"
+                        >
+                            {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Update"}
+                        </Button>
                     </div>
                 </div>
             </div>

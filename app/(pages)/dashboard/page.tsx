@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { ColumnFiltersState, SortingState } from '@tanstack/react-table';
 import { Plus, Rocket, Loader2, UsersRound } from 'lucide-react';
@@ -8,6 +8,13 @@ import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { exportApplicationsToCSV } from '@/lib/export';
 import { buildUserDisplay, getDisplayName } from '@/lib/user-display';
+import { DataTable } from "./components/data-table";
+import { Application } from "./components/columns";
+import { DashboardHeader } from "./components/dashboard-header";
+import { CohortSettingsSheet } from "./components/cohort-settings-sheet";
+import { SpotlightTour } from "@/components/SpotlightTour";
+import { TableSkeleton } from "./components/table-skeleton";
+import { ImportApplicantsModal } from "./components/import-applicants-modal";
 
 interface SavedView {
     id: string;
@@ -18,22 +25,12 @@ interface SavedView {
     scoreRange: number[];
 }
 
-import { DataTable } from "./components/data-table";
-import { Application } from "./components/columns";
-import { DashboardHeader } from "./components/dashboard-header";
-import { CohortSettingsSheet } from "./components/cohort-settings-sheet";
-import { SpotlightTour } from "@/components/SpotlightTour";
-import { TableSkeleton } from "./components/table-skeleton";
-import { ImportApplicantsModal } from "./components/import-applicants-modal";
-
 const mockProgram = {
     id: "",
     name: "Select a cohort",
     rubric: [],
     reviewers: []
 };
-
-import { Suspense } from 'react';
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -291,10 +288,10 @@ function DashboardContent() {
 
             if (scoredApps.length > 0 && rules.length > 0) {
                 console.log(`[Automation] Processing ${scoredApps.length} scored applications...`);
-                
+
                 const updates = scoredApps.map(app => {
                     let newStatus = null;
-                    
+
                     // Evaluate rules (priority: shortlist > reject)
                     const shortlistRule = rules.find(r => r.action === 'shortlist');
                     const rejectRule = rules.find(r => r.action === 'reject');
@@ -313,7 +310,7 @@ function DashboardContent() {
 
                 if (updates.length > 0) {
                     console.log(`[Automation] Applying auto-status for ${updates.length} apps...`);
-                    
+
                     // Group by status for bulk updates
                     const byStatus: Record<string, string[]> = {};
                     updates.forEach(u => {
@@ -337,7 +334,7 @@ function DashboardContent() {
                         }));
                         await supabase.from('application_logs').insert(logEntries);
                     }
-                    
+
                     // Silent refresh after automation
                     fetchData();
                 }
@@ -490,7 +487,7 @@ function DashboardContent() {
 
     const handleStatusChange = useCallback(async (id: string, status: string) => {
         console.log(`[Dashboard] Changing status for ${id} to ${status}...`);
-        
+
         // Optimistic update
         setData(prev => prev.map(app => app.id === id ? { ...app, status } : app));
 
@@ -594,121 +591,6 @@ function DashboardContent() {
         }
     }, [programId, fetchData]);
 
-
-    // Retry an edge function call with exponential backoff on transient errors (503/429).
-    const invokeWithRetry = useCallback(async (
-        fnName: string,
-        body: object,
-        maxRetries = 3
-    ): Promise<{ data: any; error: any }> => {
-        const RETRYABLE_MESSAGES = ['503', '429', 'unavailable', 'high demand', 'rate limit', 'overloaded'];
-        let lastResult: { data: any; error: any } = { data: null, error: null };
-
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            lastResult = await supabase.functions.invoke(fnName, { body });
-            const { data: respData, error: respError } = lastResult;
-
-            // Determine if the error is transient and retryable
-            const errorMsg = (respError?.message || respData?.error || '').toLowerCase();
-            const isRetryable = RETRYABLE_MESSAGES.some(keyword => errorMsg.includes(keyword));
-            const hasError = respError || (respData && respData.success === false);
-
-            if (!hasError || !isRetryable || attempt === maxRetries) {
-                return lastResult;
-            }
-
-            // Exponential backoff: 2s, 4s, 8s
-            const delayMs = Math.pow(2, attempt + 1) * 1000;
-            console.warn(`Gemini API transient error (attempt ${attempt + 1}/${maxRetries}). Retrying in ${delayMs / 1000}s...`);
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-        }
-
-        return lastResult;
-    }, []);
-
-    const handleRunAIReview = useCallback(async (targetIds?: string[]) => {
-        if (!programId) return;
-
-        const idsToReview = targetIds || data.map(app => app.id);
-        if (idsToReview.length === 0) return;
-
-        cancelScoringRef.current = false;
-        setIsScoring(true);
-
-        // 1. Optimistic status change (frontend only)
-        setData(prev => prev.map(app =>
-            idsToReview.includes(app.id) ? { ...app, status: 'Reviewing' } : app
-        ));
-
-        const message = targetIds
-            ? `AI review initiated for ${targetIds.length} applicants. Soft limits apply during Beta.`
-            : "AI review initiated for all applicants. Soft limits apply during Beta.";
-
-        toast.info(message, {
-            description: "To ensure stability, AI requests are subject to fair-usage soft limits."
-        });
-
-        // 2. Call Edge Function for each applicant sequentially, with retry on transient errors
-        try {
-            const results = [];
-            for (const id of idsToReview) {
-                if (cancelScoringRef.current) {
-                    toast.info("AI review cancelled.");
-                    break;
-                }
-                try {
-                    const { data, error } = await invokeWithRetry('score-application', {
-                        application_id: id,
-                        program_id: programId
-                    });
-
-                    if (error || (data && data.success === false)) {
-                        const errorMsg = error?.message || data?.error || "Review failed";
-                        console.error(`AI review error for applicant ${id}:`, errorMsg);
-                        results.push({ id, error: errorMsg });
-                    } else {
-                        // Add Log Entry for AI Review
-                        await supabase.from('application_logs').insert({
-                            application_id: id,
-                            program_id: programId,
-                            event_type: 'ai_review',
-                            message: `AI Review completed with score ${data.score}`,
-                            details: { score: data.score, model: 'Gemini 1.5 Pro' }
-                        });
-                        results.push({ id, error: null });
-                    }
-                } catch (e: any) {
-                    console.error(`Invoke crash for applicant ${id}:`, e);
-                    results.push({ id, error: e.message });
-                }
-            }
-
-            const failed = results.filter(r => r.error);
-            if (failed.length > 0) {
-                console.error("AI review failures detailed:", failed);
-                toast.error(`${failed.length} review(s) failed after retries. The Gemini API may be experiencing high demand — please try again shortly.`);
-            } else {
-                toast.success("AI review complete!");
-            }
-
-            // Refresh data to show new scores
-            fetchData();
-        } catch (err) {
-            console.error("AI Review error:", err);
-            toast.error("Failed to execute AI review batch");
-            fetchData();
-        } finally {
-            setIsScoring(false);
-            cancelScoringRef.current = false;
-        }
-    }, [programId, data, fetchData, invokeWithRetry]);
-
-    const handleCancelAIReview = useCallback(() => {
-        cancelScoringRef.current = true;
-        setIsScoring(false);
-        toast.warning("Cancelling review... will stop after current applicant.");
-    }, []);
-
     const handleExport = useCallback(() => {
         if (!data.length) {
             toast.info("No applicants to export.");
@@ -722,6 +604,66 @@ function DashboardContent() {
         exportApplicationsToCSV(data, program?.rubric || [], filename);
         toast.success(`Exported ${data.length} applicants.`);
     }, [data, program]);
+
+    const handleCancelAIReview = useCallback(() => {
+        cancelScoringRef.current = true;
+        setIsScoring(false);
+        toast.info("AI review cancelled.");
+    }, []);
+
+    const handleRunAIReview = useCallback(async (ids?: string[]) => {
+        if (!programId || !program?.rubric?.length) {
+            toast.error("No rubric configured for this cohort.");
+            return;
+        }
+
+        const targets = ids
+            ? data.filter(app => ids.includes(app.id))
+            : data.filter(app => !app.overallScore || app.status?.toLowerCase() === 'new');
+
+        if (!targets.length) {
+            toast.info("No applicants to review.");
+            return;
+        }
+
+        cancelScoringRef.current = false;
+        setIsScoring(true);
+        toast.info(`Starting AI review for ${targets.length} applicant(s)…`);
+
+        let completed = 0;
+        let failed = 0;
+
+        for (const app of targets) {
+            if (cancelScoringRef.current) break;
+
+            try {
+                const { error } = await supabase.functions.invoke('score-application', {
+                    body: {
+                        application_id: app.id,
+                        program_id: programId,
+                    },
+                });
+
+                if (error) throw error;
+                completed++;
+            } catch (err: any) {
+                console.error(`[AI Review] Failed for ${app.id}:`, err);
+                failed++;
+            }
+        }
+
+        setIsScoring(false);
+
+        if (cancelScoringRef.current) {
+            toast.warning(`AI review stopped. ${completed} completed, ${failed} failed.`);
+        } else if (failed > 0) {
+            toast.warning(`AI review done. ${completed} succeeded, ${failed} failed.`);
+        } else {
+            toast.success(`AI review complete for ${completed} applicant(s).`);
+        }
+
+        fetchData();
+    }, [programId, program, data, fetchData]);
 
     const [scoreRange, setScoreRange] = useState([0, 100]);
     const [activeFilters, setActiveFilters] = useState<string[]>(['all']);

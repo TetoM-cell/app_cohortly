@@ -9,7 +9,7 @@ import { SearchShortcut } from "@/components/search-shortcut";
 import { GlobalHotkeyPanel } from "@/components/global-hotkey-panel";
 import { SettingsModal } from "@/components/settings/settings-modal";
 import { UniversalSearch } from "@/components/universal-search";
-import { BetaGuard } from "@/components/beta-guard";
+
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -58,7 +58,7 @@ export default function RootLayout({
               <UniversalSearch />
               <SearchShortcut />
               <GlobalHotkeyPanel />
-              <BetaGuard />
+
               <Toaster />
             </TooltipProvider>
           </PreferencesProvider>
