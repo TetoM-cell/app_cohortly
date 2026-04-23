@@ -60,6 +60,12 @@ function DashboardContent() {
     const cancelScoringRef = useRef(false);
     const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Refs so fetchData always reads the latest values without needing them
+    // as useCallback deps (avoids stale-closure / infinite-loop problems).
+    const currentPageRef = useRef(currentPage);
+    const pageSizeRef = useRef(pageSize);
+    const queryStateRef = useRef(queryState);
+
     useEffect(() => {
         const checkUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -107,8 +113,19 @@ function DashboardContent() {
         checkUser();
     }, []);
 
+    // Keep refs in sync with state so fetchData can read them without being
+    // re-created on every pagination / filter change.
+    useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
+    useEffect(() => { pageSizeRef.current = pageSize; }, [pageSize]);
+    useEffect(() => { queryStateRef.current = queryState; }, [queryState]);
+
     const fetchData = useCallback(async () => {
         if (!programId) return;
+        // Read latest pagination / filter values from refs — not from the
+        // closure — so this callback never needs to be recreated for those.
+        const currentPage = currentPageRef.current;
+        const pageSize = pageSizeRef.current;
+        const queryState = queryStateRef.current;
         setLoading(true);
         try {
             const from = (currentPage - 1) * pageSize;
@@ -335,8 +352,9 @@ function DashboardContent() {
                         await supabase.from('application_logs').insert(logEntries);
                     }
 
-                    // Silent refresh after automation
-                    fetchData();
+                    // The realtime subscription will fire a scheduleRefresh()
+                    // automatically once the DB writes commit — no need to
+                    // call fetchData() here (which would cause a loading loop).
                 }
             }
         } catch (error: any) {
@@ -345,25 +363,22 @@ function DashboardContent() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, pageSize, programId, queryState]);
+    }, [programId]); // currentPage / pageSize / queryState read via refs
 
-    // Keep a ref to the latest fetchData so subscriptions never need to
-    // re-register just because pagination/filter state changed.
-    const fetchDataRef = useRef(fetchData);
-    useEffect(() => {
-        fetchDataRef.current = fetchData;
-    }, [fetchData]);
-
+    // scheduleRefresh is stable: it reads fetchData via the programId-stable
+    // fetchData reference (fetchData only changes when programId changes).
     const scheduleRefresh = useCallback(() => {
         if (refreshTimeoutRef.current) {
             clearTimeout(refreshTimeoutRef.current);
         }
         refreshTimeoutRef.current = setTimeout(() => {
-            fetchDataRef.current();
+            fetchData();
         }, 350);
-    }, []); // no fetchData dep — uses ref instead
+    }, [fetchData]);
 
-    // Re-fetch whenever programId, pagination, or filter state changes.
+    // ── Primary data-fetch effect ──────────────────────────────────────────
+    // Runs when programId changes (new cohort selected).
+    // Pagination / filter changes are handled by the effect below.
     useEffect(() => {
         if (!programId) {
             setData([]);
@@ -372,9 +387,21 @@ function DashboardContent() {
             return;
         }
         fetchData();
-    }, [programId, currentPage, pageSize, queryState]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [programId, fetchData]);
 
-    // Set up realtime subscriptions once per programId only.
+    // ── Re-fetch on pagination / filter changes ────────────────────────────
+    // Uses a stable fetchData (programId dep only) so this cannot loop.
+    useEffect(() => {
+        if (!programId) return;
+        fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage, pageSize, queryState]);
+
+    // ── Reset to page 1 when cohort or filters change ─────────────────────
+    useEffect(() => { setCurrentPage(1); }, [programId]);
+    useEffect(() => { setCurrentPage(1); }, [queryState]);
+
+    // ── Realtime subscriptions (once per programId) ────────────────────────
     useEffect(() => {
         if (!programId) return;
 
@@ -405,14 +432,6 @@ function DashboardContent() {
             supabase.removeChannel(commentChannel);
         };
     }, [programId, scheduleRefresh]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [programId]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [queryState]);
 
     useEffect(() => {
         const maxPage = Math.max(1, Math.ceil(totalApplicationsCount / pageSize));
