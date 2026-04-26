@@ -27,11 +27,22 @@ Deno.serve(async (req) => {
         // 1. Fetch Program and its Rubric (Fix: Rubric is likely in its own table)
         const { data: program, error: programError } = await supabase
             .from('programs')
-            .select('name, type')
+            .select('name, type, owner_id')
             .eq('id', program_id)
             .single()
 
         if (programError || !program) throw new Error('Program not found')
+
+        const { data: accessCheck, error: accessError } = await supabase
+            .rpc('has_pro_access', { _user_id: program.owner_id })
+
+        if (accessError) {
+            throw new Error(`Billing access check failed: ${accessError.message}`)
+        }
+
+        if (!accessCheck) {
+            throw new Error('AI scoring requires an active Pro subscription or trial.')
+        }
 
         const { data: rubric, error: rubricError } = await supabase
             .from('rubrics')

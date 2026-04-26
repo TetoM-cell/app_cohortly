@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import type { ColumnFiltersState, SortingState } from '@tanstack/react-table';
 import { Plus, Rocket, Loader2, UsersRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { getBillingRestrictionMessage, getClientBillingAccess } from '@/lib/billing/access';
 import { toast } from 'sonner';
 import { exportApplicationsToCSV } from '@/lib/export';
 import { buildUserDisplay, getDisplayName } from '@/lib/user-display';
@@ -644,6 +645,12 @@ function DashboardContent() {
     const handleRunAIReview = useCallback(async (ids?: string[]) => {
         if (!programId || !program?.rubric?.length) {
             toast.error("No rubric configured for this cohort.");
+            return;
+        }
+
+        const billingAccess = await getClientBillingAccess();
+        if (!billingAccess.has_access) {
+            toast.error(getBillingRestrictionMessage(billingAccess));
             return;
         }
 
