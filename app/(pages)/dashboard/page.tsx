@@ -38,6 +38,45 @@ function isDateRangeFilter(value: unknown): value is { from?: Date; to?: Date } 
     return typeof value === 'object' && value !== null && ('from' in value || 'to' in value);
 }
 
+// Helper for retrying Supabase calls on network failure
+async function supabaseWithRetry<T = any>(
+    operation: () => PromiseLike<T>,
+    retries = 3,
+    delay = 1000
+): Promise<T> {
+    let lastResult: any;
+    
+    for (let i = 0; i <= retries; i++) {
+        try {
+            lastResult = await operation();
+            if (!lastResult?.error) return lastResult;
+
+            const errorMsg = lastResult.error.message || '';
+            const isNetworkError = 
+                errorMsg.includes('Failed to fetch') || 
+                errorMsg.includes('net::ERR_NETWORK_CHANGED') ||
+                lastResult.error.status === 0 ||
+                lastResult.error.code === 'PGRST_NETWORK_ERROR';
+
+            if (!isNetworkError || i === retries) return lastResult;
+            
+            console.warn(`[Dashboard] Fetch attempt ${i + 1} failed, retrying...`, errorMsg);
+            await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+        } catch (err: any) {
+            const isNetworkError = 
+                err.message?.includes('Failed to fetch') || 
+                err.message?.includes('net::ERR_NETWORK_CHANGED') ||
+                err.name === 'TypeError';
+
+            if (!isNetworkError || i === retries) throw err;
+            
+            console.warn(`[Dashboard] Fetch attempt ${i + 1} caught error, retrying...`, err.message);
+            await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+        }
+    }
+    return lastResult;
+}
+
 function DashboardContent() {
     const searchParams = useSearchParams();
     const programId = searchParams.get('id');
@@ -72,11 +111,11 @@ function DashboardContent() {
             const { data: { user } } = await supabase.auth.getUser();
             setUser(user);
             if (user) {
-                const { data: profile } = await supabase
+                const { data: profile } = await supabaseWithRetry(() => supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', user.id)
-                    .maybeSingle();
+                    .maybeSingle()) as { data: any; error: any };
 
                 const mergedProfile = {
                     ...profile,
@@ -90,14 +129,14 @@ function DashboardContent() {
                     profile.email !== mergedProfile.email ||
                     profile.avatar_url !== mergedProfile.avatar_url
                 )) {
-                    await supabase
+                    await supabaseWithRetry(() => supabase
                         .from('profiles')
                         .update({
                             full_name: mergedProfile.full_name,
                             email: mergedProfile.email,
                             avatar_url: mergedProfile.avatar_url
                         })
-                        .eq('id', user.id);
+                        .eq('id', user.id));
                 }
 
                 if (profile) {
@@ -133,11 +172,11 @@ function DashboardContent() {
             const from = (currentPage - 1) * pageSize;
             const to = from + pageSize - 1;
             
-            const { data: progData, error: progError } = await supabase
+            const { data: progData, error: progError } = await supabaseWithRetry(() => supabase
                 .from('programs')
                 .select('*')
                 .eq('id', programId)
-                .maybeSingle();
+                .maybeSingle());
 
             if (progError) throw new Error(`Failed to fetch program: ${progError.message}`);
 
@@ -154,16 +193,17 @@ function DashboardContent() {
                 { data: formData, error: formError },
                 { data: appsData, error: appsError, count: appsCount },
             ] = await Promise.all([
-                supabase.from('rubrics').select('*').eq('program_id', programId),
-                supabase.from('program_reviewers').select('user_id, profiles:user_id ( full_name, email, avatar_url )').eq('program_id', programId),
-                supabase.from('threshold_rules').select('*').eq('program_id', programId),
-                supabase.from('forms').select('fields').eq('program_id', programId).maybeSingle(),
+                supabaseWithRetry(() => supabase.from('rubrics').select('*').eq('program_id', programId)),
+                supabaseWithRetry(() => supabase.from('program_reviewers').select('user_id, profiles:user_id ( full_name, email, avatar_url )').eq('program_id', programId)),
+                supabaseWithRetry(() => supabase.from('threshold_rules').select('*').eq('program_id', programId)),
+                supabaseWithRetry(() => supabase.from('forms').select('fields').eq('program_id', programId).maybeSingle()),
                 (() => {
                     let appsQuery = supabase
                         .from('applications')
                         .select('*', { count: 'exact' })
                         .eq('program_id', programId);
-
+                    
+                    // ... (rest of the filtering logic remains the same)
                     queryState.columnFilters.forEach((filter) => {
                         if (filter.id === 'applicantName' && typeof filter.value === 'string' && filter.value.trim()) {
                             appsQuery = appsQuery.ilike('applicant_name', `%${filter.value.trim()}%`);
@@ -212,9 +252,9 @@ function DashboardContent() {
                         appsQuery = appsQuery.order('submitted_at', { ascending: false });
                     }
 
-                    return appsQuery.range(from, to);
+                    return supabaseWithRetry(() => appsQuery.range(from, to));
                 })()
-            ]);
+            ]) as any[];
 
             if (rubricError) throw new Error(`Failed to fetch rubrics: ${rubricError.message}`);
             if (reviewersError) throw new Error(`Failed to fetch reviewers: ${reviewersError.message}`);
@@ -227,10 +267,10 @@ function DashboardContent() {
 
             let commentPresenceData: any[] = [];
             if (appsData && appsData.length > 0) {
-                const { data: fetchedCommentPresence, error: commentsError } = await supabase
+                const { data: fetchedCommentPresence, error: commentsError } = await supabaseWithRetry(() => supabase
                     .from('comments')
                     .select('application_id')
-                    .in('application_id', appsData.map(a => a.id));
+                    .in('application_id', appsData.map((a: any) => a.id)));
 
                 if (commentsError) throw new Error(`Failed to fetch comments: ${commentsError.message}`);
                 commentPresenceData = fetchedCommentPresence || [];
@@ -243,7 +283,7 @@ function DashboardContent() {
                 rubric: rubricData || [],
                 threshold_rules: thresholdData || [],
                 formFields: formData?.fields || [],
-                reviewers: (reviewersData || []).map(r => {
+                reviewers: (reviewersData || []).map((r: any) => {
                     const profile = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
                     return {
                         id: r.user_id,
@@ -254,7 +294,7 @@ function DashboardContent() {
                 })
             });
 
-            const mappedApps = (appsData || []).map(app => {
+            const mappedApps = (appsData || []).map((app: any) => {
                 const scoreEntries = Object.entries(app.scores || {});
                 const mappedScores: Record<string, number> = {};
                 scoreEntries.forEach(([key, value]: [string, any]) => {
@@ -282,21 +322,21 @@ function DashboardContent() {
             setData(mappedApps);
 
             // --- AUTOMATION ENGINE ---
-            const scoredApps = mappedApps.filter(app => app.status?.toLowerCase() === 'scored');
+            const scoredApps = mappedApps.filter((app: any) => app.status?.toLowerCase() === 'scored');
             const rules = thresholdData || [];
             if (scoredApps.length > 0 && rules.length > 0) {
-                const updates = scoredApps.map(app => {
+                const updates = scoredApps.map((app: any) => {
                     let newStatus = null;
-                    const shortlistRule = rules.find(r => r.action === 'shortlist');
-                    const rejectRule = rules.find(r => r.action === 'reject');
+                    const shortlistRule = rules.find((r: any) => r.action === 'shortlist');
+                    const rejectRule = rules.find((r: any) => r.action === 'reject');
                     if (shortlistRule && app.overallScore >= shortlistRule.value) newStatus = 'shortlist';
                     else if (rejectRule && app.overallScore < rejectRule.value) newStatus = 'rejected';
                     return newStatus ? { id: app.id, status: newStatus } : null;
-                }).filter(u => u !== null);
+                }).filter((u: any) => u !== null);
 
                 if (updates.length > 0) {
                     const byStatus: Record<string, string[]> = {};
-                    updates.forEach(u => {
+                    updates.forEach((u: any) => {
                         if (u) {
                             if (!byStatus[u.status]) byStatus[u.status] = [];
                             byStatus[u.status].push(u.id);
@@ -334,8 +374,7 @@ function DashboardContent() {
     }, [fetchData]);
 
     // ── Primary data-fetch effect ──────────────────────────────────────────
-    // Runs when programId changes (new cohort selected).
-    // Pagination / filter changes are handled by the effect below.
+    // Consolidate re-fetches into one stable effect.
     useEffect(() => {
         if (!programId) {
             setData([]);
@@ -344,15 +383,7 @@ function DashboardContent() {
             return;
         }
         fetchData();
-    }, [programId, fetchData]);
-
-    // ── Re-fetch on pagination / filter changes ────────────────────────────
-    // Uses a stable fetchData (programId dep only) so this cannot loop.
-    useEffect(() => {
-        if (!programId) return;
-        fetchData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, pageSize, queryState]);
+    }, [programId, fetchData, currentPage, pageSize, queryState]);
 
     // ── Reset to page 1 when cohort or filters change ─────────────────────
     useEffect(() => { setCurrentPage(1); }, [programId, queryState]);
@@ -408,7 +439,7 @@ function DashboardContent() {
     }, [currentPage, pageSize, totalApplicationsCount]);
 
     const loadApplicantComments = useCallback(async (applicantId: string) => {
-        const { data: fetchedComments, error } = await supabase
+        const { data: fetchedComments, error } = await supabaseWithRetry(() => supabase
             .from('comments')
             .select(`
                 id,
@@ -420,14 +451,14 @@ function DashboardContent() {
                 user:profiles!user_id ( full_name, email, avatar_url )
             `)
             .eq('application_id', applicantId)
-            .order('created_at', { ascending: true });
+            .order('created_at', { ascending: true })) as { data: any; error: any };
 
         if (error) {
             throw error;
         }
 
         const groupedComments: Record<string, any[]> = {};
-        (fetchedComments || []).forEach((comment) => {
+        (fetchedComments || []).forEach((comment: any) => {
             const colId = comment.column_id || 'general';
             if (!groupedComments[colId]) groupedComments[colId] = [];
             groupedComments[colId].push({
