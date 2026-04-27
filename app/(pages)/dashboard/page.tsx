@@ -276,7 +276,7 @@ function DashboardContent() {
                 commentPresenceData = fetchedCommentPresence || [];
             }
 
-            const commentedApplicationIds = new Set(commentPresenceData.map(c => c.application_id));
+            const commentedApplicationIds = new Set(commentPresenceData.map((c: any) => c.application_id));
 
             setProgram({
                 ...progData,
