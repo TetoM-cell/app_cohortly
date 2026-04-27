@@ -59,6 +59,7 @@ function DashboardContent() {
     });
     const cancelScoringRef = useRef(false);
     const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const fetchIdRef = useRef(0);
 
     // Refs so fetchData always reads the latest values without needing them
     // as useCallback deps (avoids stale-closure / infinite-loop problems).
@@ -121,15 +122,17 @@ function DashboardContent() {
 
     const fetchData = useCallback(async () => {
         if (!programId) return;
-        // Read latest pagination / filter values from refs — not from the
-        // closure — so this callback never needs to be recreated for those.
+        
         const currentPage = currentPageRef.current;
         const pageSize = pageSizeRef.current;
         const queryState = queryStateRef.current;
+        const currentFetchId = ++fetchIdRef.current;
+        
         setLoading(true);
         try {
             const from = (currentPage - 1) * pageSize;
             const to = from + pageSize - 1;
+            
             const { data: progData, error: progError } = await supabase
                 .from('programs')
                 .select('*')
@@ -151,26 +154,10 @@ function DashboardContent() {
                 { data: formData, error: formError },
                 { data: appsData, error: appsError, count: appsCount },
             ] = await Promise.all([
-                supabase
-                    .from('rubrics')
-                    .select('*')
-                    .eq('program_id', programId),
-                supabase
-                    .from('program_reviewers')
-                    .select(`
-                        user_id,
-                        profiles:user_id ( full_name, email, avatar_url )
-                    `)
-                    .eq('program_id', programId),
-                supabase
-                    .from('threshold_rules')
-                    .select('*')
-                    .eq('program_id', programId),
-                supabase
-                    .from('forms')
-                    .select('fields')
-                    .eq('program_id', programId)
-                    .maybeSingle(),
+                supabase.from('rubrics').select('*').eq('program_id', programId),
+                supabase.from('program_reviewers').select('user_id, profiles:user_id ( full_name, email, avatar_url )').eq('program_id', programId),
+                supabase.from('threshold_rules').select('*').eq('program_id', programId),
+                supabase.from('forms').select('fields').eq('program_id', programId).maybeSingle(),
                 (() => {
                     let appsQuery = supabase
                         .from('applications')
@@ -181,30 +168,28 @@ function DashboardContent() {
                         if (filter.id === 'applicantName' && typeof filter.value === 'string' && filter.value.trim()) {
                             appsQuery = appsQuery.ilike('applicant_name', `%${filter.value.trim()}%`);
                         }
-
                         if (filter.id === 'companyName' && Array.isArray(filter.value) && filter.value.length > 0) {
                             appsQuery = appsQuery.in('company_name', filter.value);
                         }
-
                         if (filter.id === 'status' && Array.isArray(filter.value) && filter.value.length > 0) {
                             appsQuery = appsQuery.in('status', filter.value.map((status) => String(status).toLowerCase()));
                         }
-
                         if (filter.id === 'overallScore' && Array.isArray(filter.value) && filter.value.length === 2) {
-                            appsQuery = appsQuery
-                                .gte('overall_ai_score', Number(filter.value[0]))
-                                .lte('overall_ai_score', Number(filter.value[1]));
+                            appsQuery = appsQuery.gte('overall_ai_score', Number(filter.value[0])).lte('overall_ai_score', Number(filter.value[1]));
                         }
-
                         if (filter.id === 'submittedDate' && isDateRangeFilter(filter.value)) {
-                            if (filter.value.from) {
-                                appsQuery = appsQuery.gte('submitted_at', filter.value.from.toISOString());
-                            }
+                            if (filter.value.from) appsQuery = appsQuery.gte('submitted_at', filter.value.from.toISOString());
                             if (filter.value.to) {
                                 const inclusiveEnd = new Date(filter.value.to);
                                 inclusiveEnd.setHours(23, 59, 59, 999);
                                 appsQuery = appsQuery.lte('submitted_at', inclusiveEnd.toISOString());
                             }
+                        }
+                        if (filter.id.startsWith('score_') && Array.isArray(filter.value) && filter.value.length === 2) {
+                            const rubricId = filter.id.replace('score_', '');
+                            appsQuery = appsQuery
+                                .gte(`scores->${rubricId}->>score`, Number(filter.value[0]))
+                                .lte(`scores->${rubricId}->>score`, Number(filter.value[1]));
                         }
                     });
 
@@ -217,28 +202,30 @@ function DashboardContent() {
                         submittedDate: 'submitted_at',
                     };
 
-                    const sortColumn = primarySort ? sortableColumnMap[primarySort.id] : undefined;
-
+                    let sortColumn = primarySort ? (sortableColumnMap as any)[primarySort.id] : undefined;
                     if (sortColumn) {
                         appsQuery = appsQuery.order(sortColumn, { ascending: !primarySort.desc });
+                    } else if (primarySort?.id.startsWith('score_')) {
+                        const rubricId = primarySort.id.replace('score_', '');
+                        appsQuery = appsQuery.order(`scores->${rubricId}->>score`, { ascending: !primarySort.desc });
                     } else {
                         appsQuery = appsQuery.order('submitted_at', { ascending: false });
                     }
 
                     return appsQuery.range(from, to);
-                })(),
+                })()
             ]);
 
             if (rubricError) throw new Error(`Failed to fetch rubrics: ${rubricError.message}`);
             if (reviewersError) throw new Error(`Failed to fetch reviewers: ${reviewersError.message}`);
             if (thresholdError) throw new Error(`Failed to fetch threshold rules: ${thresholdError.message}`);
-
-            if (formError) console.error('Error fetching form:', formError);
-
             if (appsError) throw new Error(`Failed to fetch applications: ${appsError.message}`);
+
+            if (currentFetchId !== fetchIdRef.current) return;
+
             setTotalApplicationsCount(appsCount ?? 0);
 
-            let commentPresenceData: { application_id: string }[] = [];
+            let commentPresenceData: any[] = [];
             if (appsData && appsData.length > 0) {
                 const { data: fetchedCommentPresence, error: commentsError } = await supabase
                     .from('comments')
@@ -249,9 +236,7 @@ function DashboardContent() {
                 commentPresenceData = fetchedCommentPresence || [];
             }
 
-            const commentedApplicationIds = new Set(
-                commentPresenceData.map((comment) => comment.application_id)
-            );
+            const commentedApplicationIds = new Set(commentPresenceData.map(c => c.application_id));
 
             setProgram({
                 ...progData,
@@ -269,16 +254,14 @@ function DashboardContent() {
                 })
             });
 
-            const mappedApps: Application[] = (appsData || []).map(app => {
-                // Map score objects
+            const mappedApps = (appsData || []).map(app => {
                 const scoreEntries = Object.entries(app.scores || {});
-                const mappedScores: any = {};
+                const mappedScores: Record<string, number> = {};
                 scoreEntries.forEach(([key, value]: [string, any]) => {
-                    const rawScore = typeof value === 'object' ? value.score : value;
-                    mappedScores[key] = typeof rawScore === 'string' ? parseFloat(rawScore) : rawScore;
+                    const rawScore = (value && typeof value === 'object') ? (value as any).score : value;
+                    (mappedScores as any)[key] = typeof rawScore === 'string' ? parseFloat(rawScore) : rawScore;
                 });
 
-                // Get overall score safely
                 const rawOverall = app.overall_ai_score ?? app.overall_score ?? 0;
                 const overallScoreNum = typeof rawOverall === 'string' ? parseFloat(rawOverall) : (rawOverall || 0);
 
@@ -293,56 +276,35 @@ function DashboardContent() {
                     hasComment: commentedApplicationIds.has(app.id),
                     answers: app.answers,
                     aiExplanation: app.ai_explanation
-                } as Application;
+                };
             });
 
             setData(mappedApps);
 
             // --- AUTOMATION ENGINE ---
-            // Only run if we have rules and apps in 'Scored' status
             const scoredApps = mappedApps.filter(app => app.status?.toLowerCase() === 'scored');
             const rules = thresholdData || [];
-
             if (scoredApps.length > 0 && rules.length > 0) {
-                console.log(`[Automation] Processing ${scoredApps.length} scored applications...`);
-
                 const updates = scoredApps.map(app => {
                     let newStatus = null;
-
-                    // Evaluate rules (priority: shortlist > reject)
                     const shortlistRule = rules.find(r => r.action === 'shortlist');
                     const rejectRule = rules.find(r => r.action === 'reject');
-
-                    if (shortlistRule && app.overallScore >= shortlistRule.value) {
-                        newStatus = 'shortlist';
-                    } else if (rejectRule && app.overallScore < rejectRule.value) {
-                        newStatus = 'rejected';
-                    }
-
-                    if (newStatus) {
-                        return { id: app.id, status: newStatus };
-                    }
-                    return null;
+                    if (shortlistRule && app.overallScore >= shortlistRule.value) newStatus = 'shortlist';
+                    else if (rejectRule && app.overallScore < rejectRule.value) newStatus = 'rejected';
+                    return newStatus ? { id: app.id, status: newStatus } : null;
                 }).filter(u => u !== null);
 
                 if (updates.length > 0) {
-                    console.log(`[Automation] Applying auto-status for ${updates.length} apps...`);
-
-                    // Group by status for bulk updates
                     const byStatus: Record<string, string[]> = {};
                     updates.forEach(u => {
-                        if (!byStatus[u.status]) byStatus[u.status] = [];
-                        byStatus[u.status].push(u.id);
+                        if (u) {
+                            if (!byStatus[u.status]) byStatus[u.status] = [];
+                            byStatus[u.status].push(u.id);
+                        }
                     });
-
-                    for (const [status, ids] of Object.entries(byStatus)) {
-                        await supabase
-                            .from('applications')
-                            .update({ status: status })
-                            .in('id', ids);
-
-                        // Log each automation event
-                        const logEntries = ids.map(id => ({
+                    for (const [status, ids] of Object.entries(byStatus) as [string, string[]][]) {
+                        await supabase.from('applications').update({ status: status }).in('id', ids);
+                        const logEntries = ids.map((id: string) => ({
                             application_id: id,
                             program_id: programId,
                             event_type: 'status_change',
@@ -351,24 +313,15 @@ function DashboardContent() {
                         }));
                         await supabase.from('application_logs').insert(logEntries);
                     }
-
-                    // The realtime subscription will fire a scheduleRefresh()
-                    // automatically once the DB writes commit — no need to
-                    // call fetchData() here (which would cause a loading loop).
                 }
             }
         } catch (error: any) {
             console.error('[Dashboard] Error loading data:', error);
             toast.error(error.message || "Failed to load dashboard data");
         } finally {
-            // Safety: small delay to prevent rapid flicker, then ensure loading is false
-            setTimeout(() => {
-                setLoading(false);
-            }, 100);
+            setTimeout(() => setLoading(false), 100);
         }
     }, [programId]);
-
-
     // scheduleRefresh is stable: it reads fetchData via the programId-stable
     // fetchData reference (fetchData only changes when programId changes).
     const scheduleRefresh = useCallback(() => {

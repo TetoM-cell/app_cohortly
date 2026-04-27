@@ -154,6 +154,8 @@ export function DataTable<TData extends Application>({
         getRowId: (row) => (row as any).id,
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
+        manualSorting: true,
+        manualFiltering: true,
         enableMultiSort: true,
         isMultiSortEvent: () => true,
         meta: {

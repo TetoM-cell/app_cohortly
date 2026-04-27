@@ -153,7 +153,7 @@ export const DataTableToolbar = forwardRef(function DataTableToolbarInner<TData>
         if (open) {
             const current = table.getAllColumns().reduce((acc, col) => {
                 if (typeof col.accessorFn !== "undefined" && col.getCanHide()) {
-                    acc[col.id] = false
+                    acc[col.id] = col.getIsVisible()
                 } else {
                     acc[col.id] = true // Keep selection/internal columns visible
                 }
