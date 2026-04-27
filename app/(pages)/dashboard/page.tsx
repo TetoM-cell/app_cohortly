@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import type { ColumnFiltersState, SortingState } from '@tanstack/react-table';
 import { Plus, Rocket, Loader2, UsersRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
-import { getBillingRestrictionMessage, getClientBillingAccess } from '@/lib/billing/access';
 import { toast } from 'sonner';
 import { exportApplicationsToCSV } from '@/lib/export';
 import { buildUserDisplay, getDisplayName } from '@/lib/user-display';
@@ -362,9 +361,13 @@ function DashboardContent() {
             console.error('[Dashboard] Error loading data:', error);
             toast.error(error.message || "Failed to load dashboard data");
         } finally {
-            setLoading(false);
+            // Safety: small delay to prevent rapid flicker, then ensure loading is false
+            setTimeout(() => {
+                setLoading(false);
+            }, 100);
         }
-    }, [programId]); // currentPage / pageSize / queryState read via refs
+    }, [programId]);
+
 
     // scheduleRefresh is stable: it reads fetchData via the programId-stable
     // fetchData reference (fetchData only changes when programId changes).
@@ -399,8 +402,18 @@ function DashboardContent() {
     }, [currentPage, pageSize, queryState]);
 
     // ── Reset to page 1 when cohort or filters change ─────────────────────
-    useEffect(() => { setCurrentPage(1); }, [programId]);
-    useEffect(() => { setCurrentPage(1); }, [queryState]);
+    useEffect(() => { setCurrentPage(1); }, [programId, queryState]);
+
+    // Safety timeout: ensure loading is never stuck
+    useEffect(() => {
+        if (loading) {
+            const timer = setTimeout(() => {
+                setLoading(false);
+            }, 10000); // 10 second fallback
+            return () => clearTimeout(timer);
+        }
+    }, [loading]);
+
 
     // ── Realtime subscriptions (once per programId) ────────────────────────
     useEffect(() => {
@@ -648,11 +661,6 @@ function DashboardContent() {
             return;
         }
 
-        const billingAccess = await getClientBillingAccess();
-        if (!billingAccess.has_access) {
-            toast.error(getBillingRestrictionMessage(billingAccess));
-            return;
-        }
 
         const targets = ids
             ? data.filter(app => ids.includes(app.id))

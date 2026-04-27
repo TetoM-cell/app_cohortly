@@ -1,392 +1,110 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { Check, CreditCard, Loader2 } from "lucide-react";
-
-import type { BillingSnapshot } from "@/lib/billing/snapshot";
-import { Button } from "@/components/ui/button";
+import React from "react";
+import { Sparkles, Info, Clock, ShieldCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 
-interface BillingSettingsProps {
-    snapshot: BillingSnapshot;
-}
-
-function formatDate(value: string | null) {
-    if (!value) {
-        return null;
-    }
-
-    return new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-    }).format(new Date(value));
-}
-
-export function BillingSettings({ snapshot }: BillingSettingsProps) {
-    const [pendingAction, setPendingAction] = useState<string | null>(null);
-    const renewalDate = formatDate(snapshot.subscription?.renewsAt ?? null);
-    const endDate = formatDate(snapshot.subscription?.endsAt ?? null);
-    const trialEndDate = formatDate(snapshot.trial?.endsAt ?? null);
-    const currentPlan = useMemo(() => snapshot.plans[0], [snapshot.plans]);
-    const currentPlanPriceLabel = snapshot.hasActiveSubscription
-        ? snapshot.subscription?.billingInterval === "yearly"
-            ? "Annual"
-            : currentPlan.prices.monthly
-        : snapshot.accessState === "trial"
-            ? "Trial"
-            : "Pro";
-    const currentPlanPeriodLabel = snapshot.hasActiveSubscription
-        ? snapshot.subscription?.billingInterval === "yearly"
-            ? "commitment, billed monthly"
-            : "month"
-        : snapshot.accessState === "trial"
-            ? "active"
-            : "subscription";
-
-    const handleCheckout = async (interval: "monthly" | "yearly") => {
-        const plan = "pro";
-        setPendingAction(`${plan}-${interval}`);
-
-        try {
-            const response = await fetch("/api/billing/checkout", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ plan, interval }),
-            });
-
-            const payload = await response.json();
-
-            if (!response.ok || !payload.url) {
-                throw new Error(payload.error || "Unable to create checkout.");
-            }
-
-            window.location.href = payload.url;
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Unable to create checkout.");
-            setPendingAction(null);
-        }
-    };
-
-    const handleOpenPortal = async () => {
-        setPendingAction("portal");
-
-        try {
-            const response = await fetch("/api/billing/portal", {
-                method: "POST",
-            });
-
-            const payload = await response.json();
-
-            if (!response.ok || !payload.url) {
-                throw new Error(payload.error || "Unable to open billing portal.");
-            }
-
-            window.location.href = payload.url;
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Unable to open billing portal.");
-            setPendingAction(null);
-        }
-    };
-
+export function BillingSettings() {
     return (
-        <div className="space-y-8 pb-20">
-            <div>
-                <h3 className="text-lg font-bold tracking-tight text-gray-900">Plan & Usage</h3>
-                <p className="mt-0.5 text-xs text-gray-500">
-                    Manage your Lemon Squeezy subscription, usage, and billing access.
+        <div className="space-y-10 pb-20 max-w-4xl">
+            <div className="space-y-2">
+                <h3 className="text-2xl font-black tracking-tight text-gray-900 flex items-center gap-2">
+                    <Sparkles className="h-6 w-6 text-amber-500 fill-amber-500" />
+                    Billing & Access
+                </h3>
+                <p className="text-sm text-gray-500 font-medium">
+                    Manage your account subscription and usage limits.
                 </p>
             </div>
 
-            {!snapshot.billingConfigured && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-                    Billing is not fully configured yet. Add the Lemon Squeezy API key, store ID, webhook secret, and
-                    variant IDs before taking payments in production.
-                </div>
-            )}
+            <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-8 shadow-sm transition-all hover:shadow-md">
+                <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-emerald-50/50 blur-3xl" />
+                <div className="absolute -left-12 -bottom-12 h-64 w-64 rounded-full bg-blue-50/50 blur-3xl" />
 
-            <Separator />
-
-            <div className="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
-                <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-gray-900">Current Plan</h4>
-                    <p className="text-xs text-gray-500">
-                        Subscription state for the account that owns your cohorts.
-                    </p>
-                </div>
-
-                <div className="md:col-span-2 max-w-2xl space-y-4">
-                    <div className="relative overflow-hidden rounded-xl border-2 border-emerald-100 bg-emerald-50/30 p-6">
-                        <div className="absolute right-0 top-0 p-4 opacity-5">
-                            <CreditCard className="h-24 w-24" />
+                <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start md:items-center">
+                    <div className="flex-1 space-y-6">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                            <ShieldCheck className="h-3 w-3" />
+                            Full Access Enabled
                         </div>
-                        <div className="relative z-10 space-y-2">
-                            <div className="flex items-center gap-2">
-                                <span className="text-md font-bold text-gray-900">{currentPlan.name}</span>
-                                <Badge variant="secondary" className="border-none bg-emerald-500 px-1.5 text-[9px] font-bold text-white">
-                                    {(snapshot.accessState === "trial"
-                                        ? "trial"
-                                        : snapshot.hasActiveSubscription
-                                            ? snapshot.subscriptionStatus
-                                            : "not subscribed").toUpperCase()}
-                                </Badge>
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-black text-gray-900">{currentPlanPriceLabel}</span>
-                                <span className="text-sm font-medium text-gray-400">/ {currentPlanPeriodLabel}</span>
-                            </div>
-                            <p className="max-w-sm text-[11px] font-medium text-emerald-700">
-                                {snapshot.accessState === "trial"
-                                    ? "Your no-card Pro trial is active. Subscribe before it ends to keep uninterrupted access."
-                                    : snapshot.hasActiveSubscription
-                                    ? currentPlan.description
-                                    : "This account does not have an active Pro subscription yet."}
+
+                        <div className="space-y-3">
+                            <h4 className="text-4xl font-black text-gray-900 tracking-tight">
+                                Cohortly is currently <span className="text-emerald-600">Free</span>.
+                            </h4>
+                            <p className="text-gray-600 leading-relaxed font-medium max-w-xl">
+                                We are currently in a limited-time free access period. During this time, all premium features,
+                                including unlimited cohorts and advanced AI-powered application screening, are available to all users at no cost.
                             </p>
-                            {snapshot.accessState === "trial" && trialEndDate ? (
-                                <p className="text-[11px] text-gray-600">Trial ends on {trialEndDate}.</p>
-                            ) : null}
-                            {(renewalDate || endDate) && (
-                                <p className="text-[11px] text-gray-600">
-                                    {snapshot.subscriptionStatus === "cancelled" && endDate
-                                        ? `Access ends on ${endDate}.`
-                                        : renewalDate
-                                            ? `Next renewal on ${renewalDate}.`
-                                            : `Current access ends on ${endDate}.`}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
-                        {snapshot.hasActiveSubscription ? (
-                            <>
-                                <Button
-                                    onClick={handleOpenPortal}
-                                    disabled={pendingAction === "portal"}
-                                    className="bg-gray-900 text-xs font-semibold hover:bg-gray-800"
-                                >
-                                    {pendingAction === "portal" ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                                    Manage Subscription
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={handleOpenPortal}
-                                    disabled={pendingAction === "portal"}
-                                    className="text-xs font-semibold text-gray-700"
-                                >
-                                    {snapshot.subscription?.billingInterval === 'monthly' ? 'Upgrade to Annual' : 'Switch to Monthly'}
-                                </Button>
-                            </>
-                        ) : (
-                            <>
-                                <Button
-                                    onClick={() => handleCheckout("monthly")}
-                                    disabled={pendingAction !== null || !snapshot.billingConfigured}
-                                    className="bg-gray-900 text-xs font-semibold hover:bg-gray-800"
-                                >
-                                    {pendingAction === "pro-monthly" ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                                    {snapshot.accessState === "trial" ? "Subscribe Monthly" : "Start Pro Monthly"}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => handleCheckout("yearly")}
-                                    disabled={pendingAction !== null || !snapshot.billingConfigured}
-                                    className="text-xs"
-                                >
-                                    {pendingAction === "pro-yearly" ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                                    {snapshot.accessState === "trial" ? "Subscribe Annual" : "Start Pro Annual"}
-                                </Button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <Separator />
-
-            <div className="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
-                <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-gray-900">Usage & Limits</h4>
-                    <p className="text-xs text-gray-500">
-                        Current usage against the limits of your active plan.
-                    </p>
-                </div>
-
-                <div className="md:col-span-2 max-w-2xl space-y-8 pt-2">
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold uppercase tracking-wider text-gray-400">Applications This Month</span>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">
-                                {snapshot.usage.currentMonthApplications}
-                                {snapshot.usage.applicationLimit ? ` / ${snapshot.usage.applicationLimit}` : ""}
-                            </span>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                            <div
-                                className="h-full bg-emerald-500 transition-all"
-                                style={{ width: `${snapshot.usage.applicationLimit ? snapshot.usage.applicationUsagePercent : 0}%` }}
-                            />
-                        </div>
-                        <p className="text-[11px] leading-relaxed text-gray-500">
-                            Total applications received: {snapshot.usage.totalApplications}. Active cohorts owned:{" "}
-                            {snapshot.usage.activePrograms}.
-                        </p>
-                    </div>
-
-
-                </div>
-            </div>
-
-            <Separator />
-
-            <div className="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
-                <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-gray-900">Billing Options</h4>
-                    <p className="text-xs text-gray-500">
-                        Hosted checkout is used for first purchase. Existing subscribers should manage billing in the
-                        customer portal.
-                    </p>
-                </div>
-
-                <div className="md:col-span-2">
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm transition-colors">
-                        <div className="flex items-center justify-between">
-                            <h5 className="text-sm font-bold text-gray-900">{currentPlan.name}</h5>
-                                <Badge variant="secondary" className="border-none bg-emerald-500 text-[9px] font-bold text-white">
-                                {snapshot.hasActiveSubscription ? "ACTIVE PRODUCT" : snapshot.accessState === "trial" ? "TRIAL ACCESS" : "AVAILABLE"}
-                            </Badge>
                         </div>
 
-                        <div className="mt-4 flex items-baseline gap-1">
-                            <span className="text-3xl font-black text-gray-900">
-                                {snapshot.hasActiveSubscription && snapshot.subscription?.billingInterval === "yearly"
-                                    ? "Annual"
-                                    : currentPlan.prices.monthly}
-                            </span>
-                            <span className="text-xs font-medium text-gray-400">
-                                {snapshot.hasActiveSubscription && snapshot.subscription?.billingInterval === "yearly"
-                                    ? "/ commitment, billed monthly"
-                                    : "/ month"}
-                            </span>
-                        </div>
-
-                        <p className="mt-2 min-h-10 text-[11px] leading-relaxed text-gray-500">{currentPlan.description}</p>
-
-                        <div className="mt-4 space-y-2">
-                            {currentPlan.features.map((feature) => (
-                                <div key={feature} className="flex items-start gap-2 text-[11px] text-gray-700">
-                                    <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
-                                    <span>{feature}</span>
+                        <div className="flex flex-wrap gap-4 pt-2">
+                            <div className="flex items-center gap-2 rounded-xl bg-gray-50 p-3 pr-4 border border-gray-100">
+                                <div className="rounded-lg bg-white p-2 shadow-sm border border-gray-100">
+                                    <Clock className="h-4 w-4 text-amber-600" />
                                 </div>
-                            ))}
-                        </div>
-
-                        <div className="mt-5">
-                            {snapshot.hasActiveSubscription ? (
-                                <div className="space-y-3">
-                                    <div className="flex flex-col sm:flex-row items-center gap-2">
-                                        <Button
-                                            onClick={handleOpenPortal}
-                                            disabled={pendingAction !== null}
-                                            className="w-full sm:w-auto text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                                        >
-                                            {pendingAction === "portal" ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                                            Update Payment Method
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            onClick={handleOpenPortal}
-                                            disabled={pendingAction !== null}
-                                            className="w-full sm:w-auto text-xs"
-                                        >
-                                            {snapshot.subscription?.billingInterval === 'monthly' ? 'Upgrade to Annual' : 'Switch to Monthly'}
-                                        </Button>
-                                        <div className="hidden sm:block flex-1" />
-                                        <Button
-                                            variant="ghost"
-                                            onClick={handleOpenPortal}
-                                            disabled={pendingAction !== null}
-                                            className="w-full sm:w-auto text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        >
-                                            Cancel Subscription
-                                        </Button>
-                                    </div>
-                                    <p className="text-[10px] leading-relaxed text-gray-500 text-center sm:text-left mt-2">
-                                        Billing management, plan changes, and cancellations are securely handled via the Lemon Squeezy portal.
-                                    </p>
+                                <div className="space-y-0.5">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pricing Status</p>
+                                    <p className="text-xs font-bold text-gray-900">Subject to change at our discretion</p>
                                 </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <Button
-                                        onClick={() => handleCheckout("monthly")}
-                                        disabled={pendingAction !== null || !snapshot.billingConfigured}
-                                        className="w-full text-xs"
-                                    >
-                                        {pendingAction === "pro-monthly" ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                                        Pro Monthly
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => handleCheckout("yearly")}
-                                        disabled={pendingAction !== null || !snapshot.billingConfigured}
-                                        className="w-full text-xs"
-                                    >
-                                        {pendingAction === "pro-yearly" ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                                        Pro Annual
-                                    </Button>
-                                    <p className="text-[10px] leading-relaxed text-gray-400">
-                                        Annual billing is presented as the discounted Pro commitment option.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <Separator />
-
-            <div className="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
-                <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-gray-900">Payment Method</h4>
-                    <p className="text-xs text-gray-500">
-                        Card details are sourced from the latest synced subscription payload.
-                    </p>
-                </div>
-
-                <div className="md:col-span-2 max-w-2xl pt-2">
-                    <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50/50 p-4">
-                        <div className="flex items-center gap-4">
-                            <div className="rounded-lg border border-gray-100 bg-white p-2">
-                                <CreditCard className="h-4 w-5 text-gray-500" />
                             </div>
-                            <div>
-                                <p className="text-sm font-semibold text-gray-900">
-                                    {snapshot.subscription?.cardBrand && snapshot.subscription?.cardLastFour
-                                        ? `${snapshot.subscription.cardBrand.toUpperCase()} **** ${snapshot.subscription.cardLastFour}`
-                                        : "Payment method available in customer portal"}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                    {snapshot.subscription?.lemonSubscriptionId
-                                        ? "Open Lemon Squeezy to update billing details."
-                                        : "No active subscription on this account yet."}
-                                </p>
+
+                            <div className="flex items-center gap-2 rounded-xl bg-gray-50 p-3 pr-4 border border-gray-100">
+                                <div className="rounded-lg bg-white p-2 shadow-sm border border-gray-100">
+                                    <Sparkles className="h-4 w-4 text-emerald-600" />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Plan</p>
+                                    <p className="text-xs font-bold text-gray-900">Early Adopter Pro</p>
+                                </div>
                             </div>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleOpenPortal}
-                            disabled={!snapshot.subscription?.lemonCustomerId || pendingAction !== null}
-                            className="text-xs"
-                        >
-                            {pendingAction === "portal" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Open Portal"}
-                        </Button>
                     </div>
+                </div>
+            </div>
+
+            <div className="rounded-2xl bg-amber-50/50 border border-amber-100 p-6 flex gap-4">
+                <div className="shrink-0 bg-white rounded-xl p-2 h-fit shadow-sm border border-amber-100">
+                    <Info className="h-5 w-5 text-amber-600" />
+                </div>
+                <div className="space-y-1">
+                    <h5 className="text-sm font-bold text-amber-900">Important Notice</h5>
+                    <p className="text-xs text-amber-800/80 leading-relaxed font-medium">
+                        Please note that this free period is temporary. Cohortly reserves the right to introduce
+                        subscription plans or usage-based pricing in the future. Users will be notified well in advance
+                        of any changes to their account access or pricing structure.
+                    </p>
+                </div>
+            </div>
+
+            <Separator className="opacity-50" />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-widest">Included Features</h4>
+                    <ul className="space-y-3">
+                        {[
+                            "Unlimited Program Cohorts",
+                            "AI-Powered Application Analysis",
+                            "Custom Evaluation Rubrics",
+                            "Team Collaboration & Review",
+                            "Exportable Candidate Data",
+                            "Automated Email Notifications"
+                        ].map((feature) => (
+                            <li key={feature} className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                {feature}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col justify-center text-center space-y-2">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Need help?</p>
+                    <p className="text-xs font-medium text-gray-600">
+                        If you have questions about our future pricing or enterprise needs,
+                        please reach out to our support team.
+                    </p>
                 </div>
             </div>
         </div>

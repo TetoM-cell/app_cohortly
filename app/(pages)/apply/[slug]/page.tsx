@@ -72,6 +72,35 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
     const [honeypot, setHoneypot] = useState("");
     const [formRenderedAt] = useState(() => new Date().toISOString());
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const turnstileRef = React.useRef<HTMLDivElement>(null);
+    const turnstileWidgetId = React.useRef<string | null>(null);
+
+    // Load Turnstile script once
+    useEffect(() => {
+        const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+        if (!SITE_KEY) return; // Skip if not configured
+
+        if (document.getElementById('cf-turnstile-script')) return;
+        const script = document.createElement('script');
+        script.id = 'cf-turnstile-script';
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit';
+        script.async = true;
+        script.defer = true;
+
+        (window as any).onTurnstileLoad = () => {
+            if (turnstileRef.current && (window as any).turnstile) {
+                turnstileWidgetId.current = (window as any).turnstile.render(turnstileRef.current, {
+                    sitekey: SITE_KEY,
+                    callback: (token: string) => setTurnstileToken(token),
+                    'expired-callback': () => setTurnstileToken(null),
+                    theme: 'light',
+                });
+            }
+        };
+
+        document.head.appendChild(script);
+    }, []);
     const [isSaved, setIsSaved] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -355,6 +384,38 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
 
     const handleSubmit = async () => {
         setIsSubmitting(true);
+
+        // Verify Turnstile CAPTCHA if configured
+        if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+            if (!turnstileToken) {
+                showToast("Please complete the verification challenge.");
+                setIsSubmitting(false);
+                return;
+            }
+
+            try {
+                const verifyRes = await fetch('/api/turnstile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: turnstileToken }),
+                });
+                const verifyData = await verifyRes.json();
+                if (!verifyData.success) {
+                    showToast(verifyData.error || "Bot verification failed. Please try again.");
+                    setIsSubmitting(false);
+                    // Reset the widget
+                    if ((window as any).turnstile && turnstileWidgetId.current) {
+                        (window as any).turnstile.reset(turnstileWidgetId.current);
+                    }
+                    setTurnstileToken(null);
+                    return;
+                }
+            } catch (err) {
+                showToast("Verification service unavailable. Please try again.");
+                setIsSubmitting(false);
+                return;
+            }
+        }
         
         try {
             // 1. Identify key fields from responses (attempt to find name, email, company)
@@ -956,6 +1017,10 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
                         >
                             Save Draft
                         </Button>
+                        {/* Turnstile CAPTCHA Widget — renders on the final section */}
+                        {currentSectionIndex === totalSections - 1 && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                            <div ref={turnstileRef} className="cf-turnstile" />
+                        )}
                         <Button
                             onClick={handleNext}
                             disabled={isSubmitting}

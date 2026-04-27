@@ -9,7 +9,6 @@ import { SettingsLaunch } from "./components/settings-launch";
 import { WizardSkeleton } from "./components/wizard-skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase/client";
-import { getBillingRestrictionMessage, getClientBillingAccess } from "@/lib/billing/access";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ScalingWrapper } from "@/components/scaling-wrapper";
@@ -213,13 +212,6 @@ function NewCohortPageContent() {
         if (!user) {
             toast.error("You must be logged in to create a program.");
             return;
-        }
-
-        const billingAccess = await getClientBillingAccess();
-        if (!billingAccess.has_access) {
-            toast.error(getBillingRestrictionMessage(billingAccess));
-            router.push('/settings/billing');
-            throw new Error('Billing access required.');
         }
 
         setLoading(true);

@@ -70,7 +70,7 @@ export function DashboardHeader({
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-xs py-2 px-3">
                                 {(() => {
-                                    const names = reviewers.slice(0, 2).map(r => r.full_name || r.email.split('@')[0]);
+                                    const names = reviewers.slice(0, 2).map(r => r.full_name || (r.email ? r.email.split('@')[0] : 'Reviewer'));
                                     const remaining = reviewers.length - 2;
 
                                     if (reviewers.length === 0) return "No reviewers";

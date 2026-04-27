@@ -9,10 +9,8 @@ import {
     Plug,
     Users,
     Palette,
-    AlertTriangle,
     Upload,
     X,
-    Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,8 +31,6 @@ import { IntegrationsSettings } from "./integrations-settings";
 import { TeamSettings } from "./team-settings";
 import { DangerSettings } from "./danger-settings";
 import { ImportSettings } from "./import-settings";
-import { fetchBillingSnapshotAction } from "@/app/actions/billing-actions";
-import type { BillingSnapshot } from "@/lib/billing/snapshot";
 
 export function SettingsModal() {
     const { 
@@ -46,8 +42,6 @@ export function SettingsModal() {
 
     const [mounted, setMounted] = useState(false);
     const [userProfile, setUserProfile] = useState<any>(null);
-    const [snapshot, setSnapshot] = useState<BillingSnapshot | null>(null);
-    const [isLoadingSnapshot, setIsLoadingSnapshot] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -65,17 +59,6 @@ export function SettingsModal() {
         fetchUser();
     }, []);
 
-    useEffect(() => {
-        if (activeSettingsTab === 'billing' && !snapshot) {
-            setIsLoadingSnapshot(true);
-            fetchBillingSnapshotAction().then((res) => {
-                if (res.snapshot) {
-                    setSnapshot(res.snapshot);
-                }
-                setIsLoadingSnapshot(false);
-            });
-        }
-    }, [activeSettingsTab, snapshot]);
 
     if (!mounted) return null;
 
@@ -112,7 +95,7 @@ export function SettingsModal() {
         },
         {
             id: "billing",
-            title: "Billing & Plans",
+            title: "Billing & Access",
             icon: CreditCard,
         },
     ];
@@ -137,15 +120,7 @@ export function SettingsModal() {
             case 'team':
                 return <TeamSettings />;
             case 'billing':
-                if (isLoadingSnapshot || !snapshot) {
-                    return (
-                        <div className="flex flex-col items-center justify-center h-[400px] text-gray-400">
-                            <Loader2 className="w-6 h-6 animate-spin mb-2" />
-                            <p className="text-sm">Loading billing details...</p>
-                        </div>
-                    );
-                }
-                return <BillingSettings snapshot={snapshot} />;
+                return <BillingSettings />;
             default:
                 return (
                     <div className="flex flex-col items-center justify-center h-[400px] text-gray-400">

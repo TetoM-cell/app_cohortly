@@ -33,7 +33,7 @@ export interface SearchResult {
 
 const STATIC_RESULTS: SearchResult[] = [
     { id: "settings-profile", title: "Profile", path: "Settings › Profile", href: "settings:profile", type: "setting" },
-    { id: "settings-billing", title: "Billing & Plans", path: "Settings › Billing & Plans", href: "settings:billing", type: "setting" },
+    { id: "settings-billing", title: "Billing & Access", path: "Settings › Billing & Access", href: "settings:billing", type: "setting" },
     { id: "settings-notifications", title: "Notifications", path: "Settings › Notifications", href: "settings:notifications", type: "setting" },
     { id: "settings-integrations", title: "Integrations", path: "Settings › Integrations", href: "settings:integrations", type: "setting" },
     { id: "settings-team", title: "Team & Reviewers", path: "Settings › Team & Reviewers", href: "settings:team", type: "setting" },

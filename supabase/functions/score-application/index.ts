@@ -18,9 +18,29 @@ Deno.serve(async (req) => {
 
         const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
         const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
 
         if (!geminiApiKey) throw new Error('GEMINI_API_KEY secret is missing in Supabase')
+
+        // --- AUTH VERIFICATION ---
+        // Extract the JWT from the Authorization header and verify the caller
+        const authHeader = req.headers.get('Authorization')
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            throw new Error('Unauthorized: Missing or invalid Authorization header.')
+        }
+
+        const userToken = authHeader.replace('Bearer ', '')
+        const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+            global: { headers: { Authorization: `Bearer ${userToken}` } }
+        })
+        const { data: { user }, error: authError } = await userClient.auth.getUser()
+
+        if (authError || !user) {
+            throw new Error('Unauthorized: Invalid or expired session token.')
+        }
+        console.log(`[AI-Scorer] Authenticated user: ${user.id}`)
+        // --- END AUTH VERIFICATION ---
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -33,16 +53,34 @@ Deno.serve(async (req) => {
 
         if (programError || !program) throw new Error('Program not found')
 
-        const { data: accessCheck, error: accessError } = await supabase
-            .rpc('has_pro_access', { _user_id: program.owner_id })
+        // 1a. Authorization Check — caller must own the program
+        if (program.owner_id !== user.id) {
+            throw new Error('Forbidden: You do not own this program.')
+        }
+        
+        // 1b. Usage Limit Check (100 AI scores per 24 hours)
+        const { data: userPrograms } = await supabase
+            .from('programs')
+            .select('id')
+            .eq('owner_id', program.owner_id)
 
-        if (accessError) {
-            throw new Error(`Billing access check failed: ${accessError.message}`)
+        const programIds = userPrograms?.map(p => p.id) || []
+        
+        if (programIds.length > 0) {
+            const { count: dailyScores, error: countError } = await supabase
+                .from('applications')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'scored')
+                .in('program_id', programIds)
+                .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+
+            if (countError) {
+                console.error('[AI-Scorer] Limit check failed:', countError)
+            } else if (dailyScores !== null && dailyScores >= 100) {
+                throw new Error('Daily AI scoring limit reached (100/day). Please try again tomorrow.')
+            }
         }
 
-        if (!accessCheck) {
-            throw new Error('AI scoring requires an active Pro subscription or trial.')
-        }
 
         const { data: rubric, error: rubricError } = await supabase
             .from('rubrics')
