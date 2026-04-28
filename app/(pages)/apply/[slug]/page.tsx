@@ -190,45 +190,6 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
         }
     }, [responses, slug]);
 
-    // --- Turnstile Widget Component ---
-    const TurnstileWidget = ({ siteKey }: { siteKey: string }) => {
-        useEffect(() => {
-            let widgetId: string | null = null;
-            let interval: NodeJS.Timeout;
-
-            const render = () => {
-                if (turnstileRef.current && (window as any).turnstile && !widgetId) {
-                    try {
-                        widgetId = (window as any).turnstile.render(turnstileRef.current, {
-                            sitekey: siteKey,
-                            callback: (token: string) => setTurnstileToken(token),
-                            'expired-callback': () => setTurnstileToken(null),
-                            theme: 'light',
-                        });
-                        clearInterval(interval);
-                    } catch (e) {
-                        console.warn("Turnstile render error:", e);
-                    }
-                }
-            };
-
-            render();
-            interval = setInterval(render, 500);
-
-            return () => {
-                clearInterval(interval);
-                if (widgetId && (window as any).turnstile) {
-                    try {
-                        (window as any).turnstile.remove(widgetId);
-                    } catch (e) { /* ignore */ }
-                }
-                setTurnstileToken(null);
-            };
-        }, [siteKey]);
-
-        return <div ref={turnstileRef} className="cf-turnstile min-h-[65px]" />;
-    };
-
     // Toast notification helper
     const showToast = (message: string) => {
         setToast({ visible: true, message });
@@ -1032,7 +993,11 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
                                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Verification Required</p>
                                         <p className="text-xs text-gray-500 font-medium">Please complete the challenge below to submit.</p>
                                     </div>
-                                    <TurnstileWidget siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!} />
+                                    <TurnstileWidget 
+                                        siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!} 
+                                        turnstileRef={turnstileRef}
+                                        setTurnstileToken={setTurnstileToken}
+                                    />
                                 </motion.div>
                             )}
                         </motion.div>
@@ -1100,3 +1065,52 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
         </ScalingWrapper>
     );
 }
+
+// --- Stable Turnstile Widget Component ---
+const TurnstileWidget = ({ 
+    siteKey, 
+    turnstileRef, 
+    setTurnstileToken 
+}: { 
+    siteKey: string;
+    turnstileRef: React.RefObject<HTMLDivElement | null>;
+    setTurnstileToken: (token: string | null) => void;
+}) => {
+    useEffect(() => {
+        let widgetId: string | null = null;
+        let interval: NodeJS.Timeout;
+
+        const render = () => {
+            if (turnstileRef.current && (window as any).turnstile && !widgetId) {
+                try {
+                    widgetId = (window as any).turnstile.render(turnstileRef.current, {
+                        sitekey: siteKey,
+                        callback: (token: string) => setTurnstileToken(token),
+                        'expired-callback': () => setTurnstileToken(null),
+                        theme: 'light',
+                    });
+                    if (interval) clearInterval(interval);
+                } catch (e) {
+                    console.warn("Turnstile render error:", e);
+                }
+            }
+        };
+
+        // Try immediately
+        render();
+        // Poll because the script or the DOM element might not be ready in the first tick
+        interval = setInterval(render, 500);
+
+        return () => {
+            if (interval) clearInterval(interval);
+            if (widgetId && (window as any).turnstile) {
+                try {
+                    (window as any).turnstile.remove(widgetId);
+                } catch (e) { /* ignore */ }
+            }
+            setTurnstileToken(null);
+        };
+    }, [siteKey, turnstileRef, setTurnstileToken]);
+
+    return <div ref={turnstileRef} className="cf-turnstile min-h-[65px]" />;
+};
