@@ -79,26 +79,14 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
     // Load Turnstile script once
     useEffect(() => {
         const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-        if (!SITE_KEY) return; // Skip if not configured
+        if (!SITE_KEY) return;
 
         if (document.getElementById('cf-turnstile-script')) return;
         const script = document.createElement('script');
         script.id = 'cf-turnstile-script';
-        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit';
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
         script.async = true;
         script.defer = true;
-
-        (window as any).onTurnstileLoad = () => {
-            if (turnstileRef.current && (window as any).turnstile) {
-                turnstileWidgetId.current = (window as any).turnstile.render(turnstileRef.current, {
-                    sitekey: SITE_KEY,
-                    callback: (token: string) => setTurnstileToken(token),
-                    'expired-callback': () => setTurnstileToken(null),
-                    theme: 'light',
-                });
-            }
-        };
-
         document.head.appendChild(script);
     }, []);
     const [isSaved, setIsSaved] = useState(false);
@@ -285,6 +273,40 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
     const currentSection = PROGRAM_DATA.sections[currentSectionIndex];
     const totalSections = PROGRAM_DATA.sections.length;
     const progress = ((currentSectionIndex + 1) / totalSections) * 100;
+
+    // Explicitly render Turnstile when reaching the final section
+    useEffect(() => {
+        const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+        if (!SITE_KEY || currentSectionIndex !== totalSections - 1) return;
+
+        const renderTurnstile = () => {
+            if (turnstileRef.current && (window as any).turnstile && !turnstileWidgetId.current) {
+                try {
+                    turnstileWidgetId.current = (window as any).turnstile.render(turnstileRef.current, {
+                        sitekey: SITE_KEY,
+                        callback: (token: string) => setTurnstileToken(token),
+                        'expired-callback': () => setTurnstileToken(null),
+                        theme: 'light',
+                    });
+                } catch (e) {
+                    console.warn("Turnstile render error:", e);
+                }
+            }
+        };
+
+        if ((window as any).turnstile) {
+            renderTurnstile();
+        } else {
+            // If script isn't ready yet, poll for it
+            const interval = setInterval(() => {
+                if ((window as any).turnstile) {
+                    renderTurnstile();
+                    clearInterval(interval);
+                }
+            }, 500);
+            return () => clearInterval(interval);
+        }
+    }, [currentSectionIndex, totalSections]);
 
     const evaluateCondition = (condition: Condition) => {
         const responseValue = responses[condition.questionId];
@@ -991,7 +1013,23 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
                                     );
                                 })}
                             </div>
+
+                            {/* Turnstile CAPTCHA Widget — renders on the final section */}
+                            {currentSectionIndex === totalSections - 1 && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="pt-8 border-t border-gray-100 flex flex-col items-center gap-4"
+                                >
+                                    <div className="text-center space-y-1">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Verification Required</p>
+                                        <p className="text-xs text-gray-500 font-medium">Please complete the challenge below to submit.</p>
+                                    </div>
+                                    <div ref={turnstileRef} className="cf-turnstile min-h-[65px]" />
+                                </motion.div>
+                            )}
                         </motion.div>
+
                     </AnimatePresence>
                 </div>
             </div>
@@ -1017,10 +1055,6 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
                         >
                             Save Draft
                         </Button>
-                        {/* Turnstile CAPTCHA Widget — renders on the final section */}
-                        {currentSectionIndex === totalSections - 1 && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-                            <div ref={turnstileRef} className="cf-turnstile" />
-                        )}
                         <Button
                             onClick={handleNext}
                             disabled={isSubmitting}
