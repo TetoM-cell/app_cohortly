@@ -18,29 +18,28 @@ Deno.serve(async (req) => {
 
         const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
         const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
 
         if (!geminiApiKey) throw new Error('GEMINI_API_KEY secret is missing in Supabase')
 
         // --- AUTH VERIFICATION ---
         const authHeader = req.headers.get('Authorization')
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            throw new Error('Unauthorized: Missing or invalid Authorization header.')
+        if (!authHeader) {
+            throw new Error('Unauthorized: No Authorization header found.')
         }
 
         const userToken = authHeader.replace('Bearer ', '')
-        const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-            global: { headers: { Authorization: `Bearer ${userToken}` } }
-        })
-        const { data: { user }, error: authError } = await userClient.auth.getUser()
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+        // Verifying the user token via the auth service
+        const { data: { user }, error: authError } = await supabase.auth.getUser(userToken)
 
         if (authError || !user) {
-            throw new Error('Unauthorized: Invalid or expired session token.')
+            console.error('[AI-Scorer AUTH ERROR]:', authError?.message || 'No user found for token')
+            throw new Error(`Unauthorized: ${authError?.message || 'Invalid or expired session token.'}`)
         }
+        console.log(`[AI-Scorer] Verified user: ${user.id}`)
         // --- END AUTH VERIFICATION ---
-
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
         // 1. Fetch Program, Rubric, and Form Definition
         const [
@@ -98,7 +97,7 @@ Respond ONLY with valid JSON in this format:
   ]
 }`
 
-        // 4. Call Gemini (Fix: Using gemini-1.5-flash)
+        // 4. Call Gemini (User requested: gemini-2.5-flash)
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`
         const res = await fetch(endpoint, {
             method: 'POST',
