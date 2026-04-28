@@ -196,6 +196,42 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
         setTimeout(() => setToast({ visible: false, message: "" }), 3000);
     };
 
+    const totalSections = program?.sections?.length || 0;
+
+    // Explicitly render Turnstile when reaching the final section
+    useEffect(() => {
+        const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+        if (!SITE_KEY || !program || currentSectionIndex !== totalSections - 1) return;
+
+        const renderTurnstile = () => {
+            if (turnstileRef.current && (window as any).turnstile && !turnstileWidgetId.current) {
+                try {
+                    turnstileWidgetId.current = (window as any).turnstile.render(turnstileRef.current, {
+                        sitekey: SITE_KEY,
+                        callback: (token: string) => setTurnstileToken(token),
+                        'expired-callback': () => setTurnstileToken(null),
+                        theme: 'light',
+                    });
+                } catch (e) {
+                    console.warn("Turnstile render error:", e);
+                }
+            }
+        };
+
+        if ((window as any).turnstile) {
+            renderTurnstile();
+        } else {
+            // If script isn't ready yet, poll for it
+            const interval = setInterval(() => {
+                if ((window as any).turnstile) {
+                    renderTurnstile();
+                    clearInterval(interval);
+                }
+            }, 500);
+            return () => clearInterval(interval);
+        }
+    }, [currentSectionIndex, totalSections, program]);
+
     if (loading) {
         return <FormSkeleton />;
     }
@@ -271,42 +307,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
     };
 
     const currentSection = PROGRAM_DATA.sections[currentSectionIndex];
-    const totalSections = PROGRAM_DATA.sections.length;
     const progress = ((currentSectionIndex + 1) / totalSections) * 100;
-
-    // Explicitly render Turnstile when reaching the final section
-    useEffect(() => {
-        const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-        if (!SITE_KEY || currentSectionIndex !== totalSections - 1) return;
-
-        const renderTurnstile = () => {
-            if (turnstileRef.current && (window as any).turnstile && !turnstileWidgetId.current) {
-                try {
-                    turnstileWidgetId.current = (window as any).turnstile.render(turnstileRef.current, {
-                        sitekey: SITE_KEY,
-                        callback: (token: string) => setTurnstileToken(token),
-                        'expired-callback': () => setTurnstileToken(null),
-                        theme: 'light',
-                    });
-                } catch (e) {
-                    console.warn("Turnstile render error:", e);
-                }
-            }
-        };
-
-        if ((window as any).turnstile) {
-            renderTurnstile();
-        } else {
-            // If script isn't ready yet, poll for it
-            const interval = setInterval(() => {
-                if ((window as any).turnstile) {
-                    renderTurnstile();
-                    clearInterval(interval);
-                }
-            }, 500);
-            return () => clearInterval(interval);
-        }
-    }, [currentSectionIndex, totalSections]);
 
     const evaluateCondition = (condition: Condition) => {
         const responseValue = responses[condition.questionId];

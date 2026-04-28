@@ -36,6 +36,8 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
 };
 
+import { UpdateGuardian } from "@/components/update-guardian";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -58,6 +60,7 @@ export default function RootLayout({
               <UniversalSearch />
               <SearchShortcut />
               <GlobalHotkeyPanel />
+              <UpdateGuardian />
 
               <Toaster />
             </TooltipProvider>
