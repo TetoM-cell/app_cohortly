@@ -96,6 +96,7 @@ function DashboardContent() {
         sorting: [],
         columnFilters: [],
     });
+    const [hasInitialLoaded, setHasInitialLoaded] = useState(false);
     const cancelScoringRef = useRef(false);
     const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const fetchIdRef = useRef(0);
@@ -158,6 +159,15 @@ function DashboardContent() {
     useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
     useEffect(() => { pageSizeRef.current = pageSize; }, [pageSize]);
     useEffect(() => { queryStateRef.current = queryState; }, [queryState]);
+
+    const handleQueryStateChange = useCallback((newState: { sorting: SortingState; columnFilters: ColumnFiltersState }) => {
+        setQueryState(prev => {
+            const isSortingSame = JSON.stringify(prev.sorting) === JSON.stringify(newState.sorting);
+            const isFiltersSame = JSON.stringify(prev.columnFilters) === JSON.stringify(newState.columnFilters);
+            if (isSortingSame && isFiltersSame) return prev;
+            return newState;
+        });
+    }, []);
 
     const fetchData = useCallback(async () => {
         if (!programId) return;
@@ -355,11 +365,12 @@ function DashboardContent() {
                     }
                 }
             }
+            setHasInitialLoaded(true);
         } catch (error: any) {
             console.error('[Dashboard] Error loading data:', error);
             toast.error(error.message || "Failed to load dashboard data");
         } finally {
-            setTimeout(() => setLoading(false), 100);
+            setLoading(false);
         }
     }, [programId]);
     // scheduleRefresh is stable: it reads fetchData via the programId-stable
@@ -380,6 +391,7 @@ function DashboardContent() {
             setData([]);
             setProgram(mockProgram);
             setTotalApplicationsCount(0);
+            setHasInitialLoaded(false);
             return;
         }
         fetchData();
@@ -387,6 +399,9 @@ function DashboardContent() {
 
     // ── Reset to page 1 when cohort or filters change ─────────────────────
     useEffect(() => { setCurrentPage(1); }, [programId, queryState]);
+
+    // ── Reset initial load state only when cohort changes ──────────────────
+    useEffect(() => { setHasInitialLoaded(false); }, [programId]);
 
     // Safety timeout: ensure loading is never stuck
     useEffect(() => {
@@ -722,7 +737,7 @@ function DashboardContent() {
                 programId={programId}
             />
             <div className="flex-1 px-6 py-4 min-h-0 flex flex-col gap-2">
-                {loading && data.length === 0 ? (
+                {loading && !hasInitialLoaded ? (
                     <div className="flex-1 min-h-0">
                         <TableSkeleton />
                     </div>
@@ -761,7 +776,7 @@ function DashboardContent() {
                                     setCurrentPage(1);
                                 }}
                                 loadApplicantComments={loadApplicantComments}
-                                onQueryStateChange={setQueryState}
+                                onQueryStateChange={handleQueryStateChange}
                             />
                         </div>
                     </>
