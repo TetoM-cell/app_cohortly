@@ -525,6 +525,28 @@ function DashboardContent() {
     }, [fetchData, programId, user]);
 
     const handleScoreChange = useCallback(async (applicantId: string, criterionId: string, score: number) => {
+        if (criterionId === 'overall') {
+            const { error } = await supabase
+                .from('applications')
+                .update({ overall_ai_score: score })
+                .eq('id', applicantId);
+
+            if (error) {
+                toast.error("Failed to update overall score");
+            } else {
+                await supabase.from('application_logs').insert({
+                    application_id: applicantId,
+                    program_id: programId,
+                    event_type: 'score_update',
+                    message: `Overall score manually updated to ${score}`,
+                    details: { score, user: user?.id }
+                });
+                toast.success("Overall score updated");
+                fetchData();
+            }
+            return;
+        }
+
         const { data: record } = await supabase
             .from('applications')
             .select('scores')

@@ -1,5 +1,6 @@
 "use client"
 
+import React, { useState, useEffect } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
@@ -32,7 +33,6 @@ import {
     Zap
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Reviewer } from "@/components/ui/mention-dropdown"
 
 export type Criterion = {
     id: string
@@ -110,6 +110,102 @@ export const getScoreColor = (score: number) => {
     if (score >= 76) return "bg-green-100/60 text-green-800"
     if (score >= 51) return "bg-yellow-100/60 text-yellow-800"
     return "bg-red-100/60 text-red-800"
+}
+
+const EditableScoreCell = ({ 
+    initialValue, 
+    applicantId, 
+    criterionId, 
+    onScoreChange,
+    isOverall = false,
+    aiExplanation = ""
+}: { 
+    initialValue: number, 
+    applicantId: string, 
+    criterionId: string, 
+    onScoreChange: (appId: string, critId: string, val: number) => void,
+    isOverall?: boolean,
+    aiExplanation?: string
+}) => {
+    const [isEditing, setIsEditing] = useState(false)
+    const [value, setValue] = useState(initialValue?.toString() || "0")
+
+    useEffect(() => {
+        setValue(initialValue?.toString() || "0")
+    }, [initialValue])
+
+    const handleSave = () => {
+        const numValue = Math.min(100, Math.max(0, parseFloat(value) || 0))
+        if (numValue !== initialValue) {
+            onScoreChange(applicantId, criterionId, numValue)
+        }
+        setIsEditing(false)
+    }
+
+    if (isEditing) {
+        return (
+            <div className="pl-1 w-20">
+                <Input
+                    type="number"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    onBlur={handleSave}
+                    onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                    className="h-7 py-0 px-2 text-xs font-medium"
+                    autoFocus
+                    min={0}
+                    max={100}
+                />
+            </div>
+        )
+    }
+
+    if (isOverall) {
+        return (
+            <div className="pl-1 flex items-center group/score" onClick={() => setIsEditing(true)}>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Badge 
+                                variant="secondary" 
+                                className={cn(
+                                    "font-normal text-xs px-2 py-0.5 rounded-full border-0 cursor-pointer transition-all",
+                                    getScoreColor(initialValue),
+                                    "group-hover/score:ring-1 group-hover/score:ring-offset-1 group-hover/score:ring-gray-300"
+                                )}
+                            >
+                                {initialValue}/100
+                            </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs p-3">
+                            <p className="text-[10px] text-gray-400 mb-1">Click to override score</p>
+                            {aiExplanation && (
+                                <>
+                                    <p className="text-xs font-semibold mb-1 flex items-center gap-1">
+                                        <Zap className="w-3 h-3 text-amber-500" />
+                                        AI Reasoning Summary
+                                    </p>
+                                    <p className="text-[11px] leading-relaxed text-gray-200">
+                                        {aiExplanation}
+                                    </p>
+                                </>
+                            )}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            </div>
+        )
+    }
+
+    return (
+        <div 
+            className="text-sm text-gray-600 pl-1 cursor-pointer hover:text-blue-600 hover:font-medium transition-colors group/rubric"
+            onClick={() => setIsEditing(true)}
+        >
+            {initialValue}/100
+            <span className="ml-1 opacity-0 group-hover/rubric:opacity-100 text-[10px] text-gray-400 italic font-normal">Edit</span>
+        </div>
+    )
 }
 
 const NotionHeader = ({ title, className }: { title: string, className?: string }) => (
@@ -217,11 +313,12 @@ export const getColumns = (rubric: Criterion[], onStatusChange?: (id: string, st
     {
         accessorKey: "overallScore",
         header: () => <NotionHeader title="AI Score" />,
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
             const score = row.getValue("overallScore") as number
             const isManual = (row.original as Application).isManualEntry
             const status = ((row.original as Application).status || "").toLowerCase()
             const isReviewing = status === "reviewing"
+            const meta = table.options.meta as any
 
             if (isReviewing) {
                 return (
@@ -232,36 +329,16 @@ export const getColumns = (rubric: Criterion[], onStatusChange?: (id: string, st
                 )
             }
 
-            if (!score || score === 0) {
-                return (
-                    <div className="pl-1">
-                        <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Not yet Review</span>
-                    </div>
-                )
-            }
-
             return (
-                <div className="pl-1 flex items-center">
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Badge variant="secondary" className={cn("font-normal text-xs px-2 py-0.5 rounded-full border-0 cursor-help", getScoreColor(score))}>
-                                    {score}/100
-                                </Badge>
-                            </TooltipTrigger>
-                            {row.original.aiExplanation && (
-                                <TooltipContent side="top" className="max-w-xs p-3">
-                                    <p className="text-xs font-semibold mb-1 flex items-center gap-1">
-                                        <Zap className="w-3 h-3 text-amber-500" />
-                                        AI Reasoning Summary
-                                    </p>
-                                    <p className="text-[11px] leading-relaxed text-gray-200">
-                                        {row.original.aiExplanation}
-                                    </p>
-                                </TooltipContent>
-                            )}
-                        </Tooltip>
-                    </TooltipProvider>
+                <div className="flex items-center">
+                    <EditableScoreCell 
+                        initialValue={score}
+                        applicantId={row.original.id}
+                        criterionId="overall"
+                        onScoreChange={meta.onScoreChange}
+                        isOverall={true}
+                        aiExplanation={row.original.aiExplanation}
+                    />
                     {isManual && <AIWarning />}
                 </div>
             )
@@ -274,10 +351,16 @@ export const getColumns = (rubric: Criterion[], onStatusChange?: (id: string, st
         accessorFn: (row: Application) => row.scores?.[c.id] || 0,
         header: () => <NotionHeader title={c.name} />,
         meta: { title: c.name },
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row, table }: { row: any, table: any }) => {
             const score = row.original.scores?.[c.id] || 0
+            const meta = table.options.meta as any
             return (
-                <div className="text-sm text-gray-600 pl-1">{score}/100</div>
+                <EditableScoreCell 
+                    initialValue={score}
+                    applicantId={row.original.id}
+                    criterionId={c.id}
+                    onScoreChange={meta.onScoreChange}
+                />
             )
         },
         size: 140,
@@ -317,7 +400,6 @@ export const getColumns = (rubric: Criterion[], onStatusChange?: (id: string, st
                                         if (onStatusChange) {
                                             onStatusChange(id, s)
                                         } else {
-                                            // Fallback to table meta if provided through useReactTable
                                             const meta = table.options.meta as any;
                                             if (meta?.onStatusChange) {
                                                 meta.onStatusChange(id, s);
