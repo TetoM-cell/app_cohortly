@@ -146,6 +146,8 @@ const EditableScoreCell = ({
         return (
             <div className="pl-1 w-20">
                 <Input
+                    id={`score-input-${applicantId}-${criterionId}`}
+                    name={`score-${criterionId}`}
                     type="number"
                     value={value}
                     onChange={(e) => setValue(e.target.value)}

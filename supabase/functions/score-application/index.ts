@@ -76,8 +76,8 @@ Deno.serve(async (req) => {
 You are an expert evaluator for the program: "${program.name}".
 Your task is to score the following application based on the provided rubric.
 
-RUBRIC:
-${rubric.map(r => `- [${r.name}] (Weight: ${r.weight}%): ${r.description || 'No description provided.'}`).join('\n')}
+RUBRIC (JSON format):
+${JSON.stringify(rubric, null, 2)}
 
 APPLICATION DATA:
 ${enrichedAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n')}
@@ -88,12 +88,15 @@ INSTRUCTIONS:
 3. Calculate an overall_score (weighted average) from 0 to 100.
 4. Provide a reasoning_summary that explains the overall decision.
 
+IMPORTANT:
+In the "breakdown" array, the "criterion_id" MUST match the "id" UUID string from the RUBRIC JSON exactly.
+
 Respond ONLY with valid JSON in this format:
 {
   "overall_score": <number>,
   "reasoning_summary": "<string>",
   "breakdown": [
-    { "criterion_id": "<id>", "score": <number>, "explanation": "<string>" }
+    { "criterion_id": "UUID-FROM-RUBRIC", "score": <number>, "explanation": "<string>" }
   ]
 }`
 

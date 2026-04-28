@@ -305,12 +305,48 @@ function DashboardContent() {
             });
 
             const mappedApps = (appsData || []).map((app: any) => {
-                const scoreEntries = Object.entries(app.scores || {});
+                // Defensive parsing of the scores field
+                let rawScores = app.scores;
+                if (typeof rawScores === 'string') {
+                    try { rawScores = JSON.parse(rawScores); } catch (e) { rawScores = {}; }
+                }
+
+                const scoreEntries = Object.entries(rawScores || {});
                 const mappedScores: Record<string, number> = {};
-                scoreEntries.forEach(([key, value]: [string, any]) => {
-                    const rawScore = (value && typeof value === 'object') ? (value as any).score : value;
-                    (mappedScores as any)[key] = typeof rawScore === 'string' ? parseFloat(rawScore) : rawScore;
+                
+                // Create a name-to-id map for fuzzy matching
+                const rubricNameMap: Record<string, string> = {};
+                (rubricData || []).forEach((r: any) => {
+                    rubricNameMap[r.name.toLowerCase()] = r.id;
                 });
+
+                scoreEntries.forEach(([key, value]: [string, any]) => {
+                    const rawScore = (value && typeof value === 'object' && 'score' in value) 
+                        ? value.score 
+                        : value;
+                    
+                    const numScore = typeof rawScore === 'string' ? parseFloat(rawScore) : Number(rawScore || 0);
+                    const finalScore = isNaN(numScore) ? 0 : numScore;
+
+                    // Try direct ID match first
+                    if ((rubricData || []).some((r: any) => r.id === key)) {
+                        mappedScores[key] = finalScore;
+                    } else {
+                        // Fallback: try matching by name (fuzzy)
+                        const matchedId = rubricNameMap[key.toLowerCase()];
+                        if (matchedId) {
+                            mappedScores[matchedId] = finalScore;
+                        } else {
+                            // If it's a UUID but not in this program's current rubric list, still keep it
+                            mappedScores[key] = finalScore;
+                        }
+                    }
+                });
+
+                // Debug log if we have an overall score but sub-scores are missing
+                if (app.overall_ai_score > 0 && Object.keys(mappedScores).length === 0) {
+                    console.warn(`[Dashboard Debug] App ${app.id} has overall score ${app.overall_ai_score} but empty sub-scores. Raw scores:`, app.scores);
+                }
 
                 const rawOverall = app.overall_ai_score ?? app.overall_score ?? 0;
                 const overallScoreNum = typeof rawOverall === 'string' ? parseFloat(rawOverall) : (rawOverall || 0);
