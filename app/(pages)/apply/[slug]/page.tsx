@@ -190,6 +190,45 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
         }
     }, [responses, slug]);
 
+    // --- Turnstile Widget Component ---
+    const TurnstileWidget = ({ siteKey }: { siteKey: string }) => {
+        useEffect(() => {
+            let widgetId: string | null = null;
+            let interval: NodeJS.Timeout;
+
+            const render = () => {
+                if (turnstileRef.current && (window as any).turnstile && !widgetId) {
+                    try {
+                        widgetId = (window as any).turnstile.render(turnstileRef.current, {
+                            sitekey: siteKey,
+                            callback: (token: string) => setTurnstileToken(token),
+                            'expired-callback': () => setTurnstileToken(null),
+                            theme: 'light',
+                        });
+                        clearInterval(interval);
+                    } catch (e) {
+                        console.warn("Turnstile render error:", e);
+                    }
+                }
+            };
+
+            render();
+            interval = setInterval(render, 500);
+
+            return () => {
+                clearInterval(interval);
+                if (widgetId && (window as any).turnstile) {
+                    try {
+                        (window as any).turnstile.remove(widgetId);
+                    } catch (e) { /* ignore */ }
+                }
+                setTurnstileToken(null);
+            };
+        }, [siteKey]);
+
+        return <div ref={turnstileRef} className="cf-turnstile min-h-[65px]" />;
+    };
+
     // Toast notification helper
     const showToast = (message: string) => {
         setToast({ visible: true, message });
@@ -198,39 +237,6 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
 
     const totalSections = program?.sections?.length || 0;
 
-    // Explicitly render Turnstile when reaching the final section
-    useEffect(() => {
-        const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-        if (!SITE_KEY || !program || currentSectionIndex !== totalSections - 1) return;
-
-        const renderTurnstile = () => {
-            if (turnstileRef.current && (window as any).turnstile && !turnstileWidgetId.current) {
-                try {
-                    turnstileWidgetId.current = (window as any).turnstile.render(turnstileRef.current, {
-                        sitekey: SITE_KEY,
-                        callback: (token: string) => setTurnstileToken(token),
-                        'expired-callback': () => setTurnstileToken(null),
-                        theme: 'light',
-                    });
-                } catch (e) {
-                    console.warn("Turnstile render error:", e);
-                }
-            }
-        };
-
-        if ((window as any).turnstile) {
-            renderTurnstile();
-        } else {
-            // If script isn't ready yet, poll for it
-            const interval = setInterval(() => {
-                if ((window as any).turnstile) {
-                    renderTurnstile();
-                    clearInterval(interval);
-                }
-            }, 500);
-            return () => clearInterval(interval);
-        }
-    }, [currentSectionIndex, totalSections, program]);
 
     if (loading) {
         return <FormSkeleton />;
@@ -1026,7 +1032,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ slug: st
                                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Verification Required</p>
                                         <p className="text-xs text-gray-500 font-medium">Please complete the challenge below to submit.</p>
                                     </div>
-                                    <div ref={turnstileRef} className="cf-turnstile min-h-[65px]" />
+                                    <TurnstileWidget siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!} />
                                 </motion.div>
                             )}
                         </motion.div>
