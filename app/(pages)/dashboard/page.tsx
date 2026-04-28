@@ -331,40 +331,6 @@ function DashboardContent() {
 
             setData(mappedApps);
 
-            // --- AUTOMATION ENGINE ---
-            const scoredApps = mappedApps.filter((app: any) => app.status?.toLowerCase() === 'scored');
-            const rules = thresholdData || [];
-            if (scoredApps.length > 0 && rules.length > 0) {
-                const updates = scoredApps.map((app: any) => {
-                    let newStatus = null;
-                    const shortlistRule = rules.find((r: any) => r.action === 'shortlist');
-                    const rejectRule = rules.find((r: any) => r.action === 'reject');
-                    if (shortlistRule && app.overallScore >= shortlistRule.value) newStatus = 'shortlist';
-                    else if (rejectRule && app.overallScore < rejectRule.value) newStatus = 'rejected';
-                    return newStatus ? { id: app.id, status: newStatus } : null;
-                }).filter((u: any) => u !== null);
-
-                if (updates.length > 0) {
-                    const byStatus: Record<string, string[]> = {};
-                    updates.forEach((u: any) => {
-                        if (u) {
-                            if (!byStatus[u.status]) byStatus[u.status] = [];
-                            byStatus[u.status].push(u.id);
-                        }
-                    });
-                    for (const [status, ids] of Object.entries(byStatus) as [string, string[]][]) {
-                        await supabase.from('applications').update({ status: status }).in('id', ids);
-                        const logEntries = ids.map((id: string) => ({
-                            application_id: id,
-                            program_id: programId,
-                            event_type: 'status_change',
-                            message: `Auto-${status} via Threshold Rules`,
-                            details: { to: status, automation: true }
-                        }));
-                        await supabase.from('application_logs').insert(logEntries);
-                    }
-                }
-            }
             setHasInitialLoaded(true);
         } catch (error: any) {
             console.error('[Dashboard] Error loading data:', error);

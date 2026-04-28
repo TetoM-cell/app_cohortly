@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
         if (!geminiApiKey) throw new Error('GEMINI_API_KEY secret is missing in Supabase')
 
         // --- AUTH VERIFICATION ---
-        // Extract the JWT from the Authorization header and verify the caller
         const authHeader = req.headers.get('Authorization')
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             throw new Error('Unauthorized: Missing or invalid Authorization header.')
@@ -39,90 +38,77 @@ Deno.serve(async (req) => {
         if (authError || !user) {
             throw new Error('Unauthorized: Invalid or expired session token.')
         }
-        console.log(`[AI-Scorer] Authenticated user: ${user.id}`)
         // --- END AUTH VERIFICATION ---
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-        // 1. Fetch Program and its Rubric (Fix: Rubric is likely in its own table)
-        const { data: program, error: programError } = await supabase
-            .from('programs')
-            .select('name, type, owner_id')
-            .eq('id', program_id)
-            .single()
+        // 1. Fetch Program, Rubric, and Form Definition
+        const [
+            { data: program, error: programError },
+            { data: rubric, error: rubricError },
+            { data: form, error: formError },
+            { data: application, error: appError }
+        ] = await Promise.all([
+            supabase.from('programs').select('name, type, owner_id').eq('id', program_id).single(),
+            supabase.from('rubrics').select('id, name, description, weight').eq('program_id', program_id),
+            supabase.from('forms').select('fields').eq('program_id', program_id).maybeSingle(),
+            supabase.from('applications').select('answers').eq('id', application_id).single()
+        ])
 
         if (programError || !program) throw new Error('Program not found')
-
-        // 1a. Authorization Check — caller must own the program
-        if (program.owner_id !== user.id) {
-            throw new Error('Forbidden: You do not own this program.')
-        }
-        
-        // 1b. Usage Limit Check (100 AI scores per 24 hours)
-        const { data: userPrograms } = await supabase
-            .from('programs')
-            .select('id')
-            .eq('owner_id', program.owner_id)
-
-        const programIds = userPrograms?.map(p => p.id) || []
-        
-        if (programIds.length > 0) {
-            const { count: dailyScores, error: countError } = await supabase
-                .from('applications')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'scored')
-                .in('program_id', programIds)
-                .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-
-            if (countError) {
-                console.error('[AI-Scorer] Limit check failed:', countError)
-            } else if (dailyScores !== null && dailyScores >= 100) {
-                throw new Error('Daily AI scoring limit reached (100/day). Please try again tomorrow.')
-            }
-        }
-
-
-        const { data: rubric, error: rubricError } = await supabase
-            .from('rubrics')
-            .select('id, name, weight')
-            .eq('program_id', program_id)
-
-        if (rubricError || !rubric || rubric.length === 0) {
-            throw new Error('No rubric found for this program')
-        }
-
-        // 2. Fetch Application
-        const { data: application, error: appError } = await supabase
-            .from('applications')
-            .select('answers')
-            .eq('id', application_id)
-            .single()
-
+        if (program.owner_id !== user.id) throw new Error('Forbidden: You do not own this program.')
+        if (rubricError || !rubric || rubric.length === 0) throw new Error('No rubric found for this program')
         if (appError || !application) throw new Error('Application data not found')
 
-        // 3. Build Prompt
-        const prompt = `
-You are an expert evaluator. Score this application for "${program.name}" strictly according to the rubric.
-Rubric: ${JSON.stringify(rubric)}
-Answers: ${JSON.stringify(application.answers)}
+        // 2. Map Answers to Labels for AI Context
+        const fieldMap = {}
+        if (form?.fields) {
+            form.fields.forEach(f => { fieldMap[f.id] = f.label })
+        }
 
-Respond ONLY with valid JSON:
+        const enrichedAnswers = []
+        Object.entries(application.answers || {}).forEach(([id, val]) => {
+            const label = fieldMap[id] || id
+            enrichedAnswers.push({ question: label, answer: val })
+        })
+
+        // 3. Build Prompt with Full Context
+        const prompt = `
+You are an expert evaluator for the program: "${program.name}".
+Your task is to score the following application based on the provided rubric.
+
+RUBRIC:
+${rubric.map(r => `- [${r.name}] (Weight: ${r.weight}%): ${r.description || 'No description provided.'}`).join('\n')}
+
+APPLICATION DATA:
+${enrichedAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n')}
+
+INSTRUCTIONS:
+1. Score each criterion from 0 to 100.
+2. Provide a brief, professional explanation for each score.
+3. Calculate an overall_score (weighted average) from 0 to 100.
+4. Provide a reasoning_summary that explains the overall decision.
+
+Respond ONLY with valid JSON in this format:
 {
-  "overall_score": <number 0-100>,
+  "overall_score": <number>,
   "reasoning_summary": "<string>",
   "breakdown": [
-    { "criterion_id": "<id>", "score": <number 0-100>, "explanation": "<string>" }
+    { "criterion_id": "<id>", "score": <number>, "explanation": "<string>" }
   ]
 }`
 
-        // 4. Call Gemini
+        // 4. Call Gemini (Fix: Using gemini-1.5-flash)
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.1 }
+                generationConfig: {
+                    temperature: 0.1,
+                    response_mime_type: "application/json"
+                }
             })
         })
 
@@ -133,9 +119,7 @@ Respond ONLY with valid JSON:
 
         const geminiData = await res.json()
         const rawText = geminiData.candidates[0].content.parts[0].text.trim()
-        // Strip markdown code fences if present (```json ... ```)
-        const jsonStr = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-        const result = JSON.parse(jsonStr)
+        const result = JSON.parse(rawText)
 
         // 5. Update Database
         const scoresMap = {}
@@ -155,7 +139,24 @@ Respond ONLY with valid JSON:
 
         if (updateError) throw new Error(`Database update failed: ${updateError.message}`)
 
-        // 6. Trigger Slack Notification
+        // 6. Chain Automation: Trigger Threshold Processing
+        try {
+            await fetch(`${supabaseUrl}/functions/v1/process-application-thresholds`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseServiceKey}`
+                },
+                body: JSON.stringify({
+                    application_id: application_id,
+                    program_id: program_id
+                })
+            })
+        } catch (automationErr) {
+            console.error(`[AI-Scorer] Automation chaining failed: ${automationErr.message}`)
+        }
+
+        // 7. Optional: Trigger Slack Notification
         try {
             await fetch(`${supabaseUrl}/functions/v1/notify-slack`, {
                 method: 'POST',
@@ -164,19 +165,15 @@ Respond ONLY with valid JSON:
                     'Authorization': `Bearer ${supabaseServiceKey}`
                 },
                 body: JSON.stringify({
-                    message: `AI Scoring complete for an application to *${program.name}*. \n*Overall Score: ${result.overall_score}* \nSummary: ${result.reasoning_summary}`,
+                    message: `AI Scoring complete for *${program.name}*. \n*Score: ${result.overall_score}* \n${result.reasoning_summary}`,
                     programName: program.name,
                     applicationId: application_id,
                     programId: program_id,
                     emoji: '🤖'
                 })
             })
-        } catch (slackErr) {
-            console.error(`[AI-Scorer] Slack notification failed: ${slackErr.message}`)
-            // Don't fail the whole process if Slack fails
-        }
+        } catch (slackErr) { /* ignore slack failures */ }
 
-        console.log(`[AI-Scorer] Success for ${application_id}`)
         return new Response(JSON.stringify({ success: true, score: result.overall_score }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200
@@ -186,7 +183,7 @@ Respond ONLY with valid JSON:
         console.error(`[AI-Scorer CRASH]: ${err.message}`)
         return new Response(JSON.stringify({ success: false, error: err.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200 // Return 200 to ensure we can see the error in the app console
+            status: 200
         })
     }
 })

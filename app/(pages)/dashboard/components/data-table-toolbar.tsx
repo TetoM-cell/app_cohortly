@@ -18,7 +18,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { Table } from "@tanstack/react-table"
-import { Search, Filter, ArrowUpDown, MoreHorizontal, Columns, Plus, X, ChevronDown, ChevronRight, ArrowLeft, Building2, Activity, ListTodo, Calendar as CalendarIcon, ExternalLink, Sparkles, CircleStop, Settings, LayoutDashboard, Pencil, Table2, Kanban, ChevronUp, Download, Upload, Link2 } from "lucide-react"
+import { Search, Filter, ArrowUpDown, MoreHorizontal, Columns, Plus, X, RefreshCw, ChevronDown, ChevronRight, ArrowLeft, Building2, Activity, ListTodo, Calendar as CalendarIcon, ExternalLink, Sparkles, CircleStop, Settings, LayoutDashboard, Pencil, Table2, Kanban, ChevronUp, Download, Upload, Link2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
@@ -54,6 +54,7 @@ interface DataTableToolbarProps<TData> {
     onLayoutPrefsChange?: (prefs: LayoutPrefs) => void
     onExport?: () => void
     onImport?: () => void
+    onRefresh?: () => void
 }
 
 import {
@@ -70,7 +71,7 @@ export interface DataTableToolbarHandle {
 }
 
 export const DataTableToolbar = forwardRef(function DataTableToolbarInner<TData>(
-    { table, program, onRunAIReview, isScoring, onCancelScoring, onSettingsClick, onCohortRename, onLayoutPrefsChange, onExport, onImport }: DataTableToolbarProps<TData>,
+    { table, program, onRunAIReview, isScoring, onCancelScoring, onSettingsClick, onCohortRename, onLayoutPrefsChange, onExport, onImport, onRefresh }: DataTableToolbarProps<TData>,
     ref: React.Ref<DataTableToolbarHandle>
 ) {
     const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -198,6 +199,20 @@ export const DataTableToolbar = forwardRef(function DataTableToolbarInner<TData>
             <div className="flex items-center justify-between py-2 px-1">
                 {/* Left side: Quick Actions */}
                 <div className="flex items-center gap-2">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-gray-400 hover:bg-gray-100/50 hover:text-gray-900 rounded-md transition-colors"
+                                onClick={onRefresh}
+                            >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">Refresh Data</TooltipContent>
+                    </Tooltip>
+                    
                     {program.id && (
                         <Button
                             variant="ghost"
