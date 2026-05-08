@@ -37,6 +37,7 @@ export const metadata: Metadata = {
 };
 
 import { UpdateGuardian } from "@/components/update-guardian";
+import { Analytics } from "@vercel/analytics/react";
 
 export default function RootLayout({
   children,
@@ -45,28 +46,29 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${dmSans.variable} ${playfair.variable} font-sans antialiased select-none tracking-tight leading-relaxed`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          forcedTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <PreferencesProvider>
-            <TooltipProvider>
-              {children}
-              <SettingsModal />
-              <UniversalSearch />
-              <SearchShortcut />
-              <GlobalHotkeyPanel />
-              <UpdateGuardian />
+        <body className={`${dmSans.variable} ${playfair.variable} font-sans antialiased select-none tracking-tight leading-relaxed`}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            forcedTheme="light"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            <PreferencesProvider>
+              <TooltipProvider>
+                {children}
+                <SettingsModal />
+                <UniversalSearch />
+                <SearchShortcut />
+                <GlobalHotkeyPanel />
+                <UpdateGuardian />
 
-              <Toaster />
-            </TooltipProvider>
-          </PreferencesProvider>
-        </ThemeProvider>
-      </body>
+                <Toaster />
+                <Analytics />
+              </TooltipProvider>
+            </PreferencesProvider>
+          </ThemeProvider>
+        </body>
     </html>
   );
 }

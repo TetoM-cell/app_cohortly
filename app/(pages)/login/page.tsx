@@ -68,7 +68,7 @@ function LoginForm() {
                     <div className="w-full max-w-md mx-auto">
                         {/* Logo */}
                         <div className="mb-12">
-                            <Link href="/" className="flex items-center gap-2 w-fit">
+                            <Link href="https://getcohortly.vercel.app" className="flex items-center gap-2 w-fit">
                                 <div className="w-6 h-6 relative flex items-center justify-center shrink-0">
                                     <Image
                                         src="/logo.svg"
@@ -112,15 +112,15 @@ function LoginForm() {
                         {/* Terms */}
                         <p className="text-xs text-gray-500 leading-relaxed mb-8">
                             By signing in, you agree to the{' '}
-                            <Link href="/terms" className="underline hover:text-gray-700">
+                            <Link href="https://getcohortly.vercel.app/terms-privacy" className="underline hover:text-gray-700">
                                 Terms of Use
                             </Link>
                             ,{' '}
-                            <Link href="/privacy" className="underline hover:text-gray-700">
+                            <Link href="https://getcohortly.vercel.app/terms-privacy" className="underline hover:text-gray-700">
                                 Privacy Notice
                             </Link>
                             , and{' '}
-                            <Link href="/cookies" className="underline hover:text-gray-700">
+                            <Link href="https://getcohortly.vercel.app/cookies" className="underline hover:text-gray-700">
                                 Cookie Notice
                             </Link>
                         </p>
