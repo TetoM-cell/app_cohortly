@@ -1,14 +1,54 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./theme.css";
 
 
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-dm-sans);
-  --font-mono: var(--font-dm-sans);
-  --font-playfair: var(--font-playfair);
+  --color-background: var(--theme-background);
+  --color-foreground: var(--theme-text);
+  --color-white: var(--theme-background);
+  --color-black: var(--theme-text);
+  --color-gray-50: color-mix(in srgb, var(--theme-background) 96%, var(--theme-text));
+  --color-gray-100: color-mix(in srgb, var(--theme-background) 92%, var(--theme-text));
+  --color-gray-200: color-mix(in srgb, var(--theme-background) 84%, var(--theme-text));
+  --color-gray-300: color-mix(in srgb, var(--theme-background) 72%, var(--theme-text));
+  --color-gray-400: color-mix(in srgb, var(--theme-background) 58%, var(--theme-text));
+  --color-gray-500: color-mix(in srgb, var(--theme-background) 45%, var(--theme-text));
+  --color-gray-600: color-mix(in srgb, var(--theme-background) 32%, var(--theme-text));
+  --color-gray-700: color-mix(in srgb, var(--theme-background) 20%, var(--theme-text));
+  --color-gray-800: color-mix(in srgb, var(--theme-background) 10%, var(--theme-text));
+  --color-gray-900: var(--theme-text);
+  --color-zinc-50: var(--color-gray-50);
+  --color-zinc-100: var(--color-gray-100);
+  --color-zinc-200: var(--color-gray-200);
+  --color-zinc-300: var(--color-gray-300);
+  --color-zinc-400: var(--color-gray-400);
+  --color-zinc-500: var(--color-gray-500);
+  --color-zinc-600: var(--color-gray-600);
+  --color-zinc-700: var(--color-gray-700);
+  --color-zinc-800: var(--color-gray-800);
+  --color-zinc-900: var(--color-gray-900);
+  --color-blue-50: color-mix(in srgb, var(--theme-background) 92%, var(--theme-primary));
+  --color-blue-100: color-mix(in srgb, var(--theme-background) 80%, var(--theme-primary));
+  --color-blue-200: color-mix(in srgb, var(--theme-background) 65%, var(--theme-primary));
+  --color-blue-300: color-mix(in srgb, var(--theme-background) 45%, var(--theme-primary));
+  --color-blue-400: color-mix(in srgb, var(--theme-background) 25%, var(--theme-primary));
+  --color-blue-500: color-mix(in srgb, var(--theme-background) 10%, var(--theme-primary));
+  --color-blue-600: var(--theme-primary);
+  --color-blue-700: color-mix(in srgb, var(--theme-primary) 82%, var(--theme-text));
+  --color-blue-800: color-mix(in srgb, var(--theme-primary) 65%, var(--theme-text));
+  --color-blue-900: color-mix(in srgb, var(--theme-primary) 50%, var(--theme-text));
+  --color-purple-50: color-mix(in srgb, var(--theme-background) 92%, var(--theme-secondary));
+  --color-purple-100: color-mix(in srgb, var(--theme-background) 80%, var(--theme-secondary));
+  --color-purple-500: color-mix(in srgb, var(--theme-background) 10%, var(--theme-secondary));
+  --color-purple-600: var(--theme-secondary);
+  --color-purple-700: color-mix(in srgb, var(--theme-secondary) 82%, var(--theme-text));
+  --color-purple-800: color-mix(in srgb, var(--theme-secondary) 65%, var(--theme-text));
+  --color-purple-900: color-mix(in srgb, var(--theme-secondary) 50%, var(--theme-text));
+  --font-sans: var(--font-inter), Arial, sans-serif;
+  --font-mono: var(--font-inter), Arial, sans-serif;
+  --font-playfair: var(--font-playfair-display), Georgia, serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -27,13 +67,13 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
+  --color-accent: var(--theme-secondary);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
+  --color-primary: var(--theme-primary);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -71,20 +111,20 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --background: var(--theme-background);
+  --foreground: var(--theme-text);
+  --card: var(--theme-secondary);
+  --card-foreground: var(--theme-text);
+  --popover: var(--theme-secondary);
+  --popover-foreground: var(--theme-text);
+  --primary: var(--theme-primary);
+  --primary-foreground: var(--theme-background);
+  --secondary: var(--theme-secondary);
+  --secondary-foreground: var(--theme-text);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --accent: var(--theme-secondary);
+  --accent-foreground: var(--theme-text);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
@@ -103,6 +143,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.87 0 0);
+}
+
+/* Keep every shared card on the same flat, theme-bordered surface. */
+[data-slot="card"] {
+  border-color: var(--theme-text);
+  box-shadow: none;
 }
 
 
@@ -129,4 +175,126 @@
   label {
     @apply cursor-pointer;
   }
+}
+
+/* Tab 2 keeps layout/spacing utilities, while custom visual treatment is
+   reset so shadcn primitives provide the component styling. */
+[data-form-builder-defaults] :where(
+  [class~="bg-white"], [class~="bg-gray-50"], [class~="bg-gray-50/50"],
+  [class~="bg-gray-100"], [class~="bg-gray-200"], [class~="bg-blue-50"],
+  [class~="bg-blue-50/10"], [class~="bg-blue-50/20"], [class~="bg-blue-600"],
+  [class~="bg-black"], [class~="bg-transparent"]
+) {
+  background-color: transparent;
+}
+
+[data-form-builder-defaults] :where(
+  [class*="text-gray-"], [class*="text-black"], [class*="text-white"],
+  [class*="text-blue-"], [class*="text-red-"]
+) {
+  color: var(--theme-text);
+}
+
+[data-form-builder-defaults] :where(
+  [class*="border-gray-"], [class*="border-blue-"], [class*="border-transparent"]
+) {
+  border-color: color-mix(in srgb, var(--theme-text) 22%, transparent);
+}
+
+[data-form-builder-defaults] :where(
+  [class~="rounded-lg"], [class~="rounded-xl"], [class~="rounded-2xl"],
+  [class~="rounded-full"]
+) {
+  border-radius: var(--radius);
+}
+
+[data-form-builder-defaults] :where([class*="shadow-"]) {
+  box-shadow: none;
+}
+
+/* Settings drawer is rendered in a portal, so keep its typography explicit. */
+[data-settings-drawer] {
+  font-family: var(--font-inter), Arial, sans-serif;
+  text-align: left;
+  align-items: stretch;
+}
+
+[data-settings-drawer] :where(
+  [class*="bg-white"], [class*="bg-gray-"], [class*="bg-blue-"],
+  [class*="bg-black"], [class*="bg-transparent"]
+) {
+  background-color: transparent;
+}
+
+[data-settings-drawer] :where(
+  [class*="text-gray-"], [class*="text-blue-"], [class*="text-black"],
+  [class*="text-white"], [class*="text-red-"]
+) {
+  color: var(--theme-text);
+}
+
+[data-settings-drawer] :where(
+  [class*="border-gray-"], [class*="border-blue-"], [class*="border-transparent"]
+) {
+  border-color: color-mix(in srgb, var(--theme-text) 22%, transparent);
+}
+
+[data-settings-drawer] :where(
+  [class~="rounded-lg"], [class~="rounded-xl"], [class~="rounded-2xl"],
+  [class~="rounded-full"]
+) {
+  border-radius: var(--radius);
+}
+
+[data-settings-drawer] :where([class*="shadow-"]) {
+  box-shadow: none;
+}
+
+[data-settings-drawer] [data-slot="select-item"]:hover,
+[data-settings-drawer] [data-slot="dropdown-menu-item"]:hover {
+  background-color: color-mix(in srgb, var(--theme-text) 12%, var(--theme-secondary)) !important;
+  color: var(--theme-text) !important;
+}
+
+/* Tab 3 keeps layout/spacing utilities while using default component visuals. */
+[data-rubric-defaults] :where(
+  [class*="bg-white"], [class*="bg-gray-"], [class*="bg-blue-"],
+  [class*="bg-indigo-"], [class*="bg-purple-"], [class*="bg-green-"],
+  [class*="bg-red-"], [class*="bg-amber-"], [class*="bg-emerald-"],
+  [class*="bg-black"], [class*="bg-gradient"], [class*="from-"], [class*="to-"]
+) {
+  background-color: transparent;
+  background-image: none;
+}
+
+[data-rubric-defaults] :where(
+  [class*="text-gray-"], [class*="text-blue-"], [class*="text-indigo-"],
+  [class*="text-purple-"], [class*="text-green-"], [class*="text-red-"],
+  [class*="text-amber-"], [class*="text-emerald-"], [class*="text-black"],
+  [class*="text-white"]
+) {
+  color: var(--theme-text);
+}
+
+[data-rubric-defaults] :where(
+  [class*="border-gray-"], [class*="border-blue-"], [class*="border-indigo-"],
+  [class*="border-purple-"], [class*="border-green-"], [class*="border-red-"],
+  [class*="border-amber-"], [class*="border-emerald-"], [class*="border-transparent"]
+) {
+  border-color: color-mix(in srgb, var(--theme-text) 22%, transparent);
+}
+
+[data-rubric-defaults] :where(
+  [class~="rounded-lg"], [class~="rounded-xl"], [class~="rounded-2xl"],
+  [class~="rounded-full"]
+) {
+  border-radius: var(--radius);
+}
+
+[data-rubric-defaults] :where([class*="shadow-"]) {
+  box-shadow: none;
+}
+
+[data-rubric-defaults] :where(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-playfair-display), Georgia, serif;
 }

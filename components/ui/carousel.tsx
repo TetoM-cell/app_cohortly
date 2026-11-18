@@ -88,6 +88,27 @@ function Carousel({
     [scrollPrev, scrollNext]
   )
 
+  const handleWheel = React.useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (!api || Math.abs(event.deltaY) <= Math.abs(event.deltaX) || Math.abs(event.deltaY) < 2) {
+        return
+      }
+
+      const movingForward = event.deltaY > 0
+      if ((movingForward && !api.canScrollNext()) || (!movingForward && !api.canScrollPrev())) {
+        return
+      }
+
+      event.preventDefault()
+      if (movingForward) {
+        api.scrollNext()
+      } else {
+        api.scrollPrev()
+      }
+    },
+    [api]
+  )
+
   React.useEffect(() => {
     if (!api || !setApi) return
     setApi(api)
@@ -120,6 +141,7 @@ function Carousel({
     >
       <div
         onKeyDownCapture={handleKeyDown}
+        onWheel={handleWheel}
         className={cn("relative", className)}
         role="region"
         aria-roledescription="carousel"

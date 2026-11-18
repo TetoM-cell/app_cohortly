@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Playfair_Display } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -11,15 +11,14 @@ import { SettingsModal } from "@/components/settings/settings-modal";
 import { UniversalSearch } from "@/components/universal-search";
 
 
-const dmSans = DM_Sans({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-dm-sans",
+  variable: "--font-inter",
 });
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
-  variable: "--font-playfair",
-  style: ["italic", "normal"],
+  variable: "--font-playfair-display",
 });
 
 export const metadata: Metadata = {
@@ -46,7 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-        <body className={`${dmSans.variable} ${playfair.variable} font-sans antialiased select-none tracking-tight leading-relaxed`}>
+        <body className={`${inter.variable} ${playfair.variable} font-sans antialiased select-none tracking-tight leading-relaxed`}>
           <ThemeProvider
             attribute="class"
             defaultTheme="light"

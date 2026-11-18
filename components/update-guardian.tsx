@@ -15,6 +15,9 @@ export function UpdateGuardian() {
         const fetchInitialVersion = async () => {
             try {
                 const res = await fetch("/api/version");
+                if (!res.ok) return;
+                const contentType = res.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) return;
                 const data = await res.json();
                 setInitialVersion(data.version);
             } catch (err) {
@@ -30,6 +33,9 @@ export function UpdateGuardian() {
 
             try {
                 const res = await fetch("/api/version");
+                if (!res.ok) return;
+                const contentType = res.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) return;
                 const data = await res.json();
                 
                 if (initialVersion && data.version !== initialVersion) {

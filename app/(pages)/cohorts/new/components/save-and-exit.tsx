@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Tooltip,
@@ -41,14 +41,14 @@ export function SaveAndExit({ onSave }: SaveAndExitProps) {
         <div className="flex items-center gap-2">
             <Button
                 variant="ghost"
-                className="text-gray-500 hover:text-black hover:bg-gray-100 flex items-center gap-2 px-3 py-2 h-auto text-sm font-medium rounded-lg transition-colors"
+                size="sm"
                 onClick={handleExit}
                 disabled={isSaving}
             >
                 {isSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                    <ArrowLeft className="w-4 h-4" />
+                    <ArrowLeft className="h-4 w-4" />
                 )}
                 Back to dashboard
             </Button>
@@ -56,11 +56,9 @@ export function SaveAndExit({ onSave }: SaveAndExitProps) {
             <TooltipProvider delayDuration={200}>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <div className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 cursor-help transition-colors">
-                            <Info className="w-3.5 h-3.5" />
-                        </div>
+                        <span className="text-muted-foreground cursor-help text-xs">ⓘ</span>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" align="start" className="max-w-[200px] text-xs font-medium">
+                    <TooltipContent side="bottom" align="start">
                         Your progress is automatically saved as a draft when you leave.
                     </TooltipContent>
                 </Tooltip>

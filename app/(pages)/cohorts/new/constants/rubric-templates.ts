@@ -17,7 +17,7 @@ export const RUBRIC_TEMPLATES: Record<string, RubricTemplate> = {
     "yc-standard": {
         id: "yc-standard",
         title: "Y Combinator Standard",
-        icon: "🚀",
+        icon: "rocket",
         color: "orange",
         tag: "Popular",
         criteria: [
@@ -31,7 +31,7 @@ export const RUBRIC_TEMPLATES: Record<string, RubricTemplate> = {
     "techstars": {
         id: "techstars",
         title: "Techstars Accelerator",
-        icon: "⚡",
+        icon: "zap",
         color: "blue",
         criteria: [
             { name: "Founders", weight: 35, description: "Founder capabilities, perseverance, and team chemistry." },
@@ -44,7 +44,7 @@ export const RUBRIC_TEMPLATES: Record<string, RubricTemplate> = {
     "nsf-sbir": {
         id: "nsf-sbir",
         title: "NSF SBIR Grant",
-        icon: "🔬",
+        icon: "flask",
         color: "purple",
         tag: "Grant-focused",
         criteria: [
@@ -57,7 +57,7 @@ export const RUBRIC_TEMPLATES: Record<string, RubricTemplate> = {
     "university-fellowship": {
         id: "university-fellowship",
         title: "University Fellowship",
-        icon: "🎓",
+        icon: "graduation-cap",
         color: "indigo",
         criteria: [
             { name: "Academic Excellence", weight: 30, description: "GPA, honors, and academic achievement history." },
@@ -69,7 +69,7 @@ export const RUBRIC_TEMPLATES: Record<string, RubricTemplate> = {
     "climate-impact": {
         id: "climate-impact",
         title: "Climate Impact Fund",
-        icon: "🌍",
+        icon: "globe",
         color: "green",
         criteria: [
             { name: "Impact Potential", weight: 40, description: "Quantifiable carbon reduction and environmental impact." },
@@ -81,7 +81,7 @@ export const RUBRIC_TEMPLATES: Record<string, RubricTemplate> = {
     "blank": {
         id: "blank",
         title: "Blank",
-        icon: "✨",
+        icon: "sparkles",
         color: "gray",
         criteria: [
             { name: "Criterion 1", weight: 100, description: "Define your first evaluation criterion." },

@@ -3,18 +3,21 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-    Search, GripVertical, Type, AlignLeft, Mail, Phone, Calendar,
+    Search, GripVertical, Type, AlignLeft, Mail, Phone, Calendar, Info,
     Upload, Video, Image, ListChecks, ChevronDown, MapPin,
     DollarSign, TrendingUp, Users, FileText, UserPlus, Link as LinkIcon
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     Accordion,
     AccordionContent,
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useDraggable } from "@dnd-kit/core";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 
 interface QuestionType {
     id: string;
@@ -83,11 +86,22 @@ const QUESTION_CATEGORIES: QuestionCategory[] = [
 
 interface QuestionLibraryProps {
     isCollapsed?: boolean;
+    cohortData: { collectName: boolean };
+    setCohortData: React.Dispatch<React.SetStateAction<any>>;
+    showThankYouPage: boolean;
+    setShowThankYouPage: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function QuestionLibrary({ isCollapsed = false }: QuestionLibraryProps) {
+export function QuestionLibrary({
+    isCollapsed = false,
+    cohortData,
+    setCohortData,
+    showThankYouPage,
+    setShowThankYouPage,
+}: QuestionLibraryProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [expandedCategories, setExpandedCategories] = useState<string[]>(["basic", "files-media", "choices", "startup-grant", "advanced"]);
+    const { setNodeRef: setLibraryDropRef } = useDroppable({ id: "question-library-drop-zone" });
 
     // Filter questions based on search
     const filteredCategories = QUESTION_CATEGORIES.map(category => ({
@@ -100,13 +114,13 @@ export function QuestionLibrary({ isCollapsed = false }: QuestionLibraryProps) {
 
     if (isCollapsed) {
         return (
-            <div className="w-16 h-full bg-white border-r border-gray-100 flex flex-col items-center py-6 gap-6">
-                <Search className="w-5 h-5 text-gray-300" />
+            <div ref={setLibraryDropRef} className="w-16 h-[calc(100%-1.5rem)] my-3 ml-3 rounded-md border bg-card flex flex-col items-center py-6 gap-6">
+                <Search className="w-5 h-5" />
                 <div className="flex-1 w-full flex flex-col items-center gap-4">
                     {QUESTION_CATEGORIES.slice(0, 4).map(cat => {
                         const Icon = cat.questions[0].icon;
                         return (
-                            <div key={cat.id} className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
+                            <div key={cat.id} className="w-8 h-8 flex items-center justify-center">
                                 <Icon className="w-4 h-4" />
                             </div>
                         );
@@ -117,24 +131,54 @@ export function QuestionLibrary({ isCollapsed = false }: QuestionLibraryProps) {
     }
 
     return (
-        <div className="w-80 h-full bg-white border-r border-gray-100 flex flex-col">
+        <div ref={setLibraryDropRef} className="w-80 h-[calc(100%-1.5rem)] my-3 ml-3 rounded-md border bg-card flex flex-col">
             {/* Header */}
-            <div className="p-5 border-b border-gray-100 space-y-4">
+            <div className="p-5 space-y-4">
                 <div>
-                    <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Toolbox</h3>
-                    <p className="text-lg font-bold text-gray-900 mt-1">Question Library</p>
+                    <h3 className="text-sm font-semibold font-playfair">Toolbox</h3>
+                    <p className="mt-1 text-xs text-muted-foreground font-sans">Question Library</p>
                 </div>
 
                 {/* Search Bar */}
                 <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-black transition-colors" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
                     <Input
                         type="text"
                         placeholder="Search components..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 h-10 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 focus:ring-0 rounded-xl transition-all"
+                        className="pl-9 h-10"
                     />
+                </div>
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id="collect-applicant-name"
+                        checked={cohortData.collectName}
+                        onCheckedChange={(checked) => setCohortData((current: any) => ({ ...current, collectName: checked === true }))}
+                    />
+                    <Label htmlFor="collect-applicant-name" className="text-sm font-medium">
+                        Collect Applicant Name
+                    </Label>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Info className="size-4 text-muted-foreground" aria-label="Applicant name information" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                By checking this, a mandatory &apos;Full name&apos; field is added to your form
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id="thank-you-page"
+                        checked={showThankYouPage}
+                        onCheckedChange={(checked) => setShowThankYouPage(checked === true)}
+                    />
+                    <Label htmlFor="thank-you-page" className="text-sm font-medium">
+                        Thank you page
+                    </Label>
                 </div>
             </div>
 
@@ -198,18 +242,18 @@ function DraggableQuestionCard({ question }: { question: QuestionType }) {
             {...listeners}
             {...attributes}
             className={cn(
-                "group relative bg-white border border-gray-100 rounded-xl p-3.5 cursor-grab hover:border-gray-300 hover:shadow-md transition-all duration-200",
-                isDragging && "border-blue-500 shadow-xl bg-white rotate-2 opacity-90 z-50",
+                "group relative border border-gray-200 rounded-xl p-3.5 cursor-grab hover:border-gray-400 transition-all duration-200",
+                isDragging && "border-blue-500 bg-white opacity-90 z-50",
                 "active:cursor-grabbing"
             )}
         >
             <div className="flex items-start gap-3.5 text-left">
-                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-black group-hover:text-white transition-colors duration-200">
+                <div className="p-2 transition-colors duration-200 group-hover:text-foreground">
                     <Icon className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0 pt-0.5">
-                    <div className="text-sm font-bold text-gray-900 group-hover:text-black">{question.label}</div>
-                    <div className="text-[11px] text-gray-500 mt-0.5 font-medium leading-normal">{question.description}</div>
+                    <div className="text-sm font-bold text-gray-900 group-hover:text-foreground">{question.label}</div>
+                    <div className="text-[11px] text-gray-500 mt-0.5 font-medium leading-normal group-hover:text-foreground">{question.description}</div>
                 </div>
             </div>
             <GripVertical className="absolute top-1/2 -translate-y-1/2 right-2 w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />

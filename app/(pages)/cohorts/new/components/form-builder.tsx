@@ -3,21 +3,16 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-    Plus, ChevronLeft, ChevronRight, Play, ExpandIcon, Info,
+    Plus, ExpandIcon, Info,
     Type, AlignLeft, Mail, Phone, Calendar, Upload, Video,
     Image as ImageIcon, ListChecks, ChevronDown as ChevronDownIcon,
     DollarSign, TrendingUp, MapPin, Users, UserPlus, Link as LinkIcon,
     FileText
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { QuestionLibrary } from "./question-library";
 import { FormCanvas } from "./form-canvas";
 import { FormPreview } from "./form-preview";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-import { WizardProgress } from "./wizard-progress";
-import { SaveAndExit } from "./save-and-exit";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
     DndContext,
     DragEndEvent,
@@ -101,11 +96,6 @@ interface FormBuilderProps {
 }
 
 export function FormBuilder({
-    onNext,
-    onBack,
-    onSave,
-    steps,
-    currentStep = 2,
     sections,
     setSections,
     coverImage,
@@ -193,6 +183,7 @@ export function FormBuilder({
 
         // Handle dropping from library to canvas
         if (activeId.startsWith("library-")) {
+            if (overId === "question-library-drop-zone" || overId.startsWith("library-")) return;
             const questionType = activeId.replace("library-", "");
             const targetSectionId = overId;
 
@@ -280,64 +271,18 @@ export function FormBuilder({
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveId(null)}
         >
-            <div className="w-full h-screen flex flex-col bg-[#FBFCFD]">
-                {/* Top Bar - Clean & Minimal */}
-                <div className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 gap-8 shrink-0 relative z-20">
-                    <div className="flex items-center gap-4 shrink-0">
-                        <button
-                            onClick={() => setIsLibraryCollapsed(!isLibraryCollapsed)}
-                            className="p-2 hover:bg-gray-50 rounded-lg transition-colors hidden lg:block text-gray-500 hover:text-gray-900"
-                            title={isLibraryCollapsed ? "Expand Toolbox" : "Collapse Toolbox"}
-                        >
-                            {isLibraryCollapsed ? (
-                                <ChevronRight className="w-5 h-5" />
-                            ) : (
-                                <ChevronLeft className="w-5 h-5" />
-                            )}
-                        </button>
-
-                        <SaveAndExit onSave={onSave} />
-                    </div>
-
-                    {/* Progress Bar */}
-                    {steps && (
-                        <div className="hidden lg:flex flex-1 max-w-xl items-center gap-6 justify-center">
-                            <WizardProgress currentStep={currentStep} steps={steps || []} size="sm" className="flex-1" />
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setIsPreviewOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-600 hover:text-black hover:bg-gray-50 rounded-lg transition-colors"
-                        >
-                            <Play className="w-3.5 h-3.5 fill-current" />
-                            Preview
-                        </button>
-                        <div className="h-6 w-px bg-gray-200" />
-                        <Button variant="ghost" size="sm" onClick={onBack} className="text-gray-500 hover:text-gray-900">
-                            Back
-                        </Button>
-                        <Button
-                            onClick={onNext}
-                            className="bg-black hover:bg-gray-800 text-white rounded-xl px-6 text-sm font-bold shadow-lg shadow-gray-200"
-                        >
-                            Continue
-                            <ChevronRight className="w-4 h-4 ml-2" />
-                        </Button>
-                    </div>
-                </div>
-
+            <div data-form-builder-defaults className="w-full h-screen flex flex-col">
                 {/* Mobile View Switcher */}
-                <div className="lg:hidden flex items-center justify-center gap-2 p-3 bg-white border-b border-gray-100">
+                <div className="lg:hidden flex items-center justify-center gap-2 p-3">
                     <button
                         onClick={() => setMobileView("library")}
                         className={cn(
-                            "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors",
+                            "flex-1 py-2 px-4",
                             mobileView === "library"
-                                ? "bg-black text-white"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? ""
+                                : ""
                         )}
                     >
                         Library
@@ -345,10 +290,10 @@ export function FormBuilder({
                     <button
                         onClick={() => setMobileView("canvas")}
                         className={cn(
-                            "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors",
+                            "flex-1 py-2 px-4",
                             mobileView === "canvas"
-                                ? "bg-black text-white"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? ""
+                                : ""
                         )}
                     >
                         Canvas
@@ -362,12 +307,18 @@ export function FormBuilder({
                         "hidden lg:block transition-all duration-300 relative z-10",
                         mobileView === "library" && "block lg:hidden w-full"
                     )}>
-                        <QuestionLibrary isCollapsed={isLibraryCollapsed} />
+                        <QuestionLibrary
+                            isCollapsed={isLibraryCollapsed}
+                            cohortData={cohortData}
+                            setCohortData={setCohortData}
+                            showThankYouPage={showThankYouPage}
+                            setShowThankYouPage={setShowThankYouPage}
+                        />
                     </div>
 
                     {/* Center Panel - Form Canvas */}
                     <div className={cn(
-                        "hidden lg:block lg:flex-1 h-full w-full bg-[#FBFCFD] relative",
+                        "hidden lg:block lg:flex-1 h-full w-full relative",
                         mobileView === "canvas" && "block lg:flex-1 w-full h-full"
                     )}>
                         <div className="absolute inset-0 overflow-y-auto">
@@ -375,7 +326,6 @@ export function FormBuilder({
                                 sections={sections}
                                 setSections={setSections}
                                 showCoverPage={showCoverPage}
-                                setCoverPage={setShowCoverPage}
                                 showThankYouPage={showThankYouPage}
                                 setShowThankYouPage={setShowThankYouPage}
                                 activeId={activeId}
@@ -385,6 +335,7 @@ export function FormBuilder({
                                 setLogo={setLogo}
                                 cohortData={cohortData}
                                 setCohortData={setCohortData}
+                                onPreview={() => setIsPreviewOpen(true)}
                             />
                         </div>
                     </div>
@@ -392,39 +343,23 @@ export function FormBuilder({
 
                 {/* Preview Sheet */}
                 <Sheet open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-                    <SheetContent className="w-full sm:max-w-[50vw] p-0 border-l border-gray-200 overflow-hidden flex flex-col [&>button]:hidden">
+                    <SheetContent showClose={false} className="!w-[50vw] !max-w-[50vw]">
                         <SheetTitle className="sr-only">Form Preview</SheetTitle>
-                        {/* Toolbar */}
-                        <div className="h-14 border-b border-gray-100 flex items-center justify-between px-4 bg-white shrink-0">
-                            <div className="flex items-center gap-2" />
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-gray-500 hover:text-gray-900"
-                                onClick={() => setIsPreviewOpen(false)}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-                            </Button>
-                        </div>
-
-                        <div className="flex-1 overflow-hidden relative">
-                            <FormPreview
-                                sections={sections}
-                                showCoverPage={showCoverPage}
-                                showThankYouPage={showThankYouPage}
-                                coverImage={coverImage}
-                                logo={logo}
-                                cohortData={cohortData}
-                                className="w-full h-full border-none absolute inset-0"
-                            />
-                        </div>
+                        <FormPreview
+                            sections={sections}
+                            showCoverPage={showCoverPage}
+                            showThankYouPage={showThankYouPage}
+                            coverImage={coverImage}
+                            logo={logo}
+                            cohortData={cohortData}
+                        />
                     </SheetContent>
                 </Sheet>
             </div>
 
             <DragOverlay dropAnimation={null}>
                 {activeId ? (
-                    <div className="bg-white border border-blue-500 rounded-xl p-4 shadow-2xl w-80 cursor-grabbing pointer-events-none ring-4 ring-blue-500/10 scale-105 transition-transform duration-200">
+                    <div className="bg-white border border-blue-500 rounded-xl p-4 w-80 cursor-grabbing pointer-events-none ring-4 ring-blue-500/10 transition-transform duration-200">
                         <div className="flex items-center gap-4">
                             <div className="p-2 bg-blue-50 rounded-lg">
                                 {(() => {

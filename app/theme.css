@@ -1,0 +1,51 @@
+/* App-wide theme source of truth. Change these four values to retheme Cohortly. */
+:root {
+  --theme-text: #2d2d2d;
+  --theme-background: #fffff7;
+  --theme-primary: #060d0c;
+  --theme-secondary: #fffff7;
+
+  /* Reusable wizard status tokens */
+  --wizard-active-border: #3b82f6;
+  --wizard-active-text: #2563eb;
+  --wizard-active-background: #eff6ff;
+  --wizard-completed-border: #22c55e;
+  --wizard-completed-text: #16a34a;
+  --wizard-completed-background: #dcfce7;
+  --wizard-warning-border: #eab308;
+  --wizard-warning-text: #ca8a04;
+  --wizard-warning-background: #fefce8;
+  --wizard-error-border: #ef4444;
+  --wizard-error-text: #dc2626;
+  --wizard-error-background: #fef2f2;
+}
+
+/* Explicit font utility so headings do not depend on generated token resolution. */
+.font-playfair {
+  font-family: var(--font-playfair-display), Georgia, serif;
+}
+
+/* Reusable wizard step states */
+.wizard-step-active {
+  border-color: var(--wizard-active-border);
+  color: var(--wizard-active-text);
+  background-color: var(--wizard-active-background);
+}
+
+.wizard-step-completed {
+  border-color: var(--wizard-completed-border);
+  color: var(--wizard-completed-text);
+  background-color: var(--wizard-completed-background);
+}
+
+.wizard-step-warning {
+  border-color: var(--wizard-warning-border);
+  color: var(--wizard-warning-text);
+  background-color: var(--wizard-warning-background);
+}
+
+.wizard-step-error {
+  border-color: var(--wizard-error-border);
+  color: var(--wizard-error-text);
+  background-color: var(--wizard-error-background);
+}

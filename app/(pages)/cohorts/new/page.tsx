@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { WizardProgress } from "./components/wizard-progress";
+import { useState, useEffect } from "react";
+import { WizardStepper } from "./components/wizard-stepper";
 import { CohortBasics } from "./components/cohort-basics";
 import { FormBuilder, getIconForType, Section } from "./components/form-builder";
 import { RubricScoring } from "./components/rubric-scoring";
@@ -13,12 +13,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ScalingWrapper } from "@/components/scaling-wrapper";
 import { Suspense } from "react";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, ArrowRight, Loader2, LayoutDashboard } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const STEPS = [
     { id: 1, title: "Cohort Basics" },
     { id: 2, title: "Form Builder" },
-    { id: 3, title: "Rubric & AI Scoring" },
-    { id: 4, title: "Settings & Launch" },
+    { id: 3, title: "Rubric Scoring" },
+    { id: 4, title: "Launch" },
 ];
 
 interface Criterion {
@@ -189,16 +192,34 @@ function NewCohortPageContent() {
         loadDraft();
     }, [editId]);
 
+    const [isSavingDraftState, setIsSavingDraftState] = useState(false);
+    const isStep1Valid = Boolean(cohortData.name && cohortData.openDate && cohortData.deadline);
+
+    const handleExit = async () => {
+        if (user) {
+            setIsSavingDraftState(true);
+            try {
+                await saveProgram('draft');
+                toast.success("Progress saved as draft");
+            } catch (error) {
+                console.error("Exit save error:", error);
+            } finally {
+                setIsSavingDraftState(false);
+            }
+        }
+        router.push("/dashboard");
+    };
+
     const handleNext = async () => {
         if (currentStep < STEPS.length) {
-            // Quietly save draft when moving forward
-            try {
-                await handleSaveDraft();
-                setCurrentStep((prev) => prev + 1);
-            } catch (e) {
-                console.error("Failed to auto-save draft:", e);
-                return;
+            if (user) {
+                try {
+                    await saveProgram('draft');
+                } catch (e) {
+                    console.error("Failed to auto-save draft:", e);
+                }
             }
+            setCurrentStep((prev) => prev + 1);
         }
     };
 
@@ -436,7 +457,19 @@ function NewCohortPageContent() {
     };
 
     const handleSaveDraft = async () => {
-        await saveProgram('draft');
+        if (!user) {
+            toast.info("Sign in to save your progress to the database.");
+            return;
+        }
+        setIsSavingDraftState(true);
+        try {
+            await saveProgram('draft');
+            toast.success("Progress saved as draft");
+        } catch (error) {
+            console.error("Save draft error:", error);
+        } finally {
+            setIsSavingDraftState(false);
+        }
     };
 
     if (loading && editId) {
@@ -444,30 +477,13 @@ function NewCohortPageContent() {
     }
 
     return (
-        <ScalingWrapper className="min-h-screen bg-[#FBFCFD]">
+        <ScalingWrapper className="min-h-screen bg-background">
             {currentStep === 1 && (
-                <div className="p-8 md:p-12 lg:p-16 flex flex-col items-center">
-                    <div className="w-full max-w-4xl">
-                        <WizardProgress currentStep={currentStep} steps={STEPS} />
-                        <div className="mt-16">
-                            <AnimatePresence mode="wait">
-                                <motion.div
-                                    key="step1"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -20 }}
-                                    transition={{ duration: 0.3 }}
-                                >
-                                    <CohortBasics
-                                        formData={cohortData}
-                                        setFormData={setCohortData}
-                                        onNext={handleNext}
-                                        onSave={handleSaveDraft}
-                                    />
-                                </motion.div>
-                            </AnimatePresence>
-                        </div>
-                    </div>
+                <div className="max-w-4xl mx-auto py-8 px-4 pb-28">
+                    <CohortBasics
+                        formData={cohortData}
+                        setFormData={setCohortData}
+                    />
                 </div>
             )}
 
@@ -551,6 +567,66 @@ function NewCohortPageContent() {
                     </motion.div>
                 </AnimatePresence>
             )}
+            {/* Fixed Bottom Bar */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 w-full h-14 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_-8px_20px_-6px_rgba(0,0,0,0.05)] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-border/80 before:to-transparent flex items-center">
+                <div className="w-full mx-auto px-5 flex items-center justify-between gap-6">
+                    <div className="flex-1 max-w-2xl min-w-0">
+                        <WizardStepper
+                            currentStep={currentStep}
+                            steps={STEPS}
+                            onStepClick={(step) => {
+                                if (step <= currentStep) {
+                                    setCurrentStep(step);
+                                }
+                            }}
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                        <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button type="button" variant="ghost" size="icon-sm" onClick={handleExit} disabled={isSavingDraftState} aria-label="Back to dashboard">
+                                        <LayoutDashboard className="h-4 w-4" />
+                                        <span className="sr-only">Back to dashboard</span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">Back to dashboard</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSaveDraft}
+                            disabled={isSavingDraftState}
+                        >
+                            {isSavingDraftState ? (
+                                <>
+                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                "Save as draft"
+                            )}
+                        </Button>
+
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={currentStep === 1 ? (!isStep1Valid || isSavingDraftState) : isSavingDraftState}
+                            onClick={handleNext}
+                        >
+                            {currentStep === 1 && "Continue to form builder"}
+                            {currentStep === 2 && "Continue to rubric scoring"}
+                            {currentStep === 3 && "Continue to review & launch"}
+                            {currentStep === 4 && "Launch Cohort"}
+                            <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
         </ScalingWrapper>
     );
 }

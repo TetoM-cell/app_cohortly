@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-    Plus, GripVertical, Trash2, Settings, ChevronDown, ChevronUp,
-    Copy, MoreVertical, Type, Upload, Image as ImageIcon, X, Users, Pencil
+    Plus, GripVertical, Trash2, Settings, ChevronDown, ChevronUp, Play,
+    Copy, MoreVertical, Type, Upload, Image as ImageIcon, X, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +37,6 @@ interface FormCanvasProps {
     sections: Section[];
     setSections: React.Dispatch<React.SetStateAction<Section[]>>;
     showCoverPage: boolean;
-    setCoverPage: (show: boolean) => void;
     showThankYouPage: boolean;
     setShowThankYouPage: (show: boolean) => void;
     activeId?: string | null;
@@ -47,6 +46,7 @@ interface FormCanvasProps {
     setLogo: (url: string | null) => void;
     cohortData: any;
     setCohortData: React.Dispatch<React.SetStateAction<any>>;
+    onPreview: () => void;
 }
 
 function SortableQuestion({
@@ -90,29 +90,21 @@ function SortableQuestion({
             className={cn(
                 "group p-5 border rounded-2xl relative transition-all duration-200",
                 effectiveHasLogic
-                    ? "border-blue-100 bg-blue-50/20"
-                    : "border-gray-100 bg-white hover:border-gray-300 hover:shadow-md",
-                isDragging && "opacity-90 border-blue-500 shadow-xl z-20 rotate-1"
+                    ? "border-[var(--wizard-active-border)] bg-white"
+                    : "border-gray-100 bg-white hover:border-gray-300",
+                isDragging && "opacity-90 border-blue-500 z-20"
             )}
         >
             {effectiveHasLogic && (
-                <div className="absolute bottom-4 right-4 z-10">
+                <div className="absolute bottom-3 right-3 z-10">
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onOpenSettings(question, "logic");
-                                    }}
-                                    className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-black tracking-widest uppercase hover:bg-blue-700 transition-all shadow-sm transform hover:scale-105"
-                                >
-                                    Logic
+                                <button type="button" aria-label="Logic is active." className="size-2 rounded-full bg-[var(--wizard-active-border)] transition-transform hover:scale-125">
+                                    <span className="sr-only">Logic is active.</span>
                                 </button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="bg-black text-white px-3 py-2 rounded-lg shadow-xl border-none">
-                                <p className="text-xs font-medium">{question.logicSummary || "This question has display logic"}</p>
-                            </TooltipContent>
+                            <TooltipContent>Logic is active.</TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
                 </div>
@@ -134,17 +126,12 @@ function SortableQuestion({
                             value={question.text}
                             onChange={(e) => {
                                 onUpdateText(sectionId, question.id, e.target.value);
-                                e.target.style.height = 'auto';
-                                e.target.style.height = e.target.scrollHeight + 'px';
                             }}
                             rows={1}
-                            className="flex-1 min-w-0 font-bold text-[15px] bg-transparent border-none p-0 outline-none text-gray-900 placeholder:text-gray-300 resize-none overflow-hidden leading-relaxed"
+                            className="w-auto max-w-full flex-none font-bold text-[15px] bg-transparent border-none p-0 outline-none text-gray-900 placeholder:text-gray-300 resize-none overflow-hidden leading-relaxed [field-sizing:content]"
                             placeholder="Enter question text..."
                             onFocus={(e) => {
-                                e.target.style.height = 'auto';
-                                e.target.style.height = e.target.scrollHeight + 'px';
                             }}
-                            style={{ height: 'auto' }}
                         />
                         <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/q-edit:opacity-100 transition-opacity flex-shrink-0 mt-1" />
                     </div>
@@ -177,7 +164,7 @@ function SortableQuestion({
                                     <MoreVertical className="w-4 h-4" />
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl shadow-xl border-gray-100">
+                        <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl border-gray-100">
                                 <DropdownMenuItem onClick={() => onDuplicate(sectionId, question.id)} className="rounded-lg text-xs font-medium py-2">
                                     <Copy className="w-3.5 h-3.5 mr-2" />
                                     Duplicate
@@ -243,10 +230,10 @@ function DroppableSection({
             ref={setNodeRef}
             style={style}
             className={cn(
-                "bg-white rounded-2xl border transition-all duration-200",
-                isOver ? "border-blue-400 bg-blue-50/10 ring-2 ring-blue-500/10 shadow-lg scale-[1.01]" : "border-transparent shadow-sm hover:shadow-lg hover:border-gray-50",
+                "group bg-white rounded-2xl border border-border transition-all duration-200",
+                isOver ? "border-blue-400 bg-blue-50/10 ring-2 ring-blue-500/10 scale-[1.01]" : "hover:border-foreground",
                 isOverAny && !isOver && "border-dashed border-gray-200 opacity-60",
-                isDragging && "opacity-80 border-blue-500 shadow-2xl z-20 scale-[1.02] rotate-1"
+                isDragging && "opacity-80 border-blue-500 z-20"
             )}
         >
             <div className="p-6">
@@ -256,29 +243,29 @@ function DroppableSection({
                             <GripVertical className="w-4 h-4 text-gray-400" />
                         </div>
                         <div className="flex-1 space-y-1 min-w-0">
-                            <div className="flex items-center gap-1.5 group/title-edit">
+                            <div className="flex max-w-full items-center gap-1.5 group/title-edit">
                                 <input
                                     type="text"
                                     value={section.title}
                                     onChange={(e) => onUpdateTitle(section.id, e.target.value)}
-                                    className="flex-1 min-w-0 text-lg font-bold text-gray-900 bg-transparent border-none p-0 outline-none placeholder:text-gray-300 transition-colors focus:text-black"
+                                    className="w-auto max-w-full flex-none text-lg font-bold text-gray-900 bg-transparent border-none p-0 outline-none placeholder:text-gray-300 transition-colors focus:text-black [field-sizing:content]"
                                     placeholder="Section Title"
                                 />
                                 <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/title-edit:opacity-100 transition-opacity flex-shrink-0" />
                             </div>
-                            <div className="flex items-center gap-1.5 group/desc-edit">
+                            <div className="flex max-w-full items-center gap-1.5 group/desc-edit">
                                 <input
                                     type="text"
                                     value={section.description}
                                     onChange={(e) => onUpdateDescription(section.id, e.target.value)}
                                     placeholder="Add a description for this section..."
-                                    className="flex-1 min-w-0 text-sm text-gray-500 bg-transparent border-none p-0 outline-none placeholder:text-gray-300 font-medium"
+                                    className="w-auto max-w-full flex-none text-sm text-gray-500 bg-transparent border-none p-0 outline-none placeholder:text-gray-300 font-medium [field-sizing:content]"
                                 />
                                 <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/desc-edit:opacity-100 transition-opacity flex-shrink-0" />
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1">
                         <button
                             onClick={() => onToggleSection(section.id)}
                             className="p-2 hover:bg-gray-50 rounded-lg transition-colors text-gray-400 hover:text-black"
@@ -309,7 +296,6 @@ export function FormCanvas({
     sections,
     setSections,
     showCoverPage,
-    setCoverPage,
     showThankYouPage,
     setShowThankYouPage,
     activeId,
@@ -318,7 +304,8 @@ export function FormCanvas({
     logo,
     setLogo,
     cohortData,
-    setCohortData
+    setCohortData,
+    onPreview
 }: FormCanvasProps) {
     const [settingsModalOpen, setSettingsModalOpen] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<Question | undefined>(undefined);
@@ -388,26 +375,25 @@ export function FormCanvas({
     };
 
     return (
-        <div className={cn("h-full bg-[#FBFCFD] overflow-y-auto px-4 pb-20", className)}>
+        <div className={cn("h-full overflow-y-auto px-4 pb-20", className)}>
             <div className="max-w-4xl mx-auto pt-8 pb-12 space-y-8">
                 {/* Header / Canvas Toolbar */}
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Application Form</h1>
-                        <p className="text-sm text-gray-500 mt-1">Design the intake form for your cohort.</p>
+                        <h1 className="font-playfair text-3xl font-semibold tracking-tight">Application Form</h1>
+                        <p className="mt-1 text-sm text-muted-foreground font-sans">Design the intake form for your cohort.</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm">
-                            <label className="flex items-center gap-2 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    checked={showCoverPage}
-                                    onChange={(e) => setCoverPage(e.target.checked)}
-                                    className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black"
-                                />
-                                <span className="text-xs font-bold uppercase tracking-wider text-gray-600">Cover</span>
-                            </label>
-                        </div>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button type="button" variant="outline" size="icon-lg" onClick={onPreview} aria-label="Preview">
+                                        <Play className="size-5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Preview</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                         <Button
                             onClick={() => {
                                 const newSection: Section = {
@@ -419,7 +405,7 @@ export function FormCanvas({
                                 };
                                 setSections([...sections, newSection]);
                             }}
-                            className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 h-9 text-xs font-bold uppercase tracking-wider shadow-lg shadow-gray-200"
+                            className=""
                         >
                             <Plus className="w-3.5 h-3.5 mr-2" />
                             Add Section
@@ -429,7 +415,7 @@ export function FormCanvas({
 
                 {/* Cover Page */}
                 {showCoverPage && (
-                    <div className="bg-white rounded-2xl border-transparent shadow-sm hover:shadow-lg hover:border-gray-50 transition-all overflow-hidden group">
+                    <div className="bg-white rounded-2xl border border-border hover:border-foreground transition-all overflow-hidden group">
                         {/* Cover Image Preview */}
                         {coverImage && (
                             <div className="relative h-56 w-full group/image">
@@ -456,7 +442,7 @@ export function FormCanvas({
                                 <div className="flex items-center gap-4">
                                     {/* Logo Upload/Preview */}
                                     {logo ? (
-                                        <div className="relative group/logo w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
+                                        <div className="relative group/logo w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 bg-white">
                                             <img src={logo} alt="Logo" className="w-full h-full object-contain p-2" />
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center">
                                                 <button
@@ -506,50 +492,32 @@ export function FormCanvas({
                                 </div>
                             </div>
                             <div className="space-y-4 max-w-2xl">
-                                <div className="flex items-center gap-2 group/cover-title-edit">
+                                <div className="flex max-w-full items-center gap-2 group/cover-title-edit">
                                     <input
                                         type="text"
                                         placeholder="Application Title"
-                                        className="flex-1 min-w-0 text-4xl font-black bg-transparent border-none p-0 placeholder:text-gray-200 outline-none focus:ring-0 text-gray-900 tracking-tight"
+                                        className="w-auto max-w-full flex-none text-4xl font-black bg-transparent border-none p-0 placeholder:text-gray-200 outline-none focus:ring-0 text-gray-900 tracking-tight [field-sizing:content]"
                                         value={cohortData.name}
                                         onChange={(e) => setCohortData({ ...cohortData, name: e.target.value })}
                                     />
                                     <Pencil className="w-4 h-4 text-gray-300 opacity-0 group-hover/cover-title-edit:opacity-100 transition-opacity flex-shrink-0" />
                                 </div>
-                                <div className="text-lg relative group/cover-desc-edit">
+                                <div className="flex max-w-full items-start gap-2 text-lg group/cover-desc-edit">
                                     <textarea
                                         placeholder="Add a description or welcome message..."
-                                        className="w-full min-h-[80px] bg-transparent border-none p-0 placeholder:text-gray-300 outline-none resize-none leading-relaxed text-gray-600 font-medium"
+                                        className="w-auto max-w-full min-h-[80px] flex-none bg-transparent border-none p-0 placeholder:text-gray-300 outline-none resize-none leading-relaxed text-gray-600 font-medium [field-sizing:content]"
                                         value={cohortData.description}
                                         onChange={(e) => setCohortData({ ...cohortData, description: e.target.value })}
                                     />
-                                    <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/cover-desc-edit:opacity-100 transition-opacity absolute top-0 right-0" />
+                                    <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/cover-desc-edit:opacity-100 transition-opacity mt-1 flex-shrink-0" />
                                 </div>
+                                {cohortData.collectName && (
+                                    <p className="text-xs italic text-[var(--wizard-active-text)]">
+                                        * Applicant name will be collected
+                                    </p>
+                                )}
                             </div>
                             
-                            {/* Form Settings / Name Toggle */}
-                            <div className="mt-8 pt-8 border-t border-gray-100">
-                                <div className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-blue-100 hover:bg-blue-50/10 transition-all group">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-gray-100 text-blue-600 group-hover:scale-110 transition-transform">
-                                            <Users className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-sm font-bold text-gray-900">Collect Applicant Name</h4>
-                                            <p className="text-xs text-gray-500">Add a mandatory 'Full Name' field to your form</p>
-                                        </div>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={cohortData.collectName}
-                                            onChange={(e) => setCohortData({ ...cohortData, collectName: e.target.checked })}
-                                        />
-                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 )}
@@ -613,37 +581,13 @@ export function FormCanvas({
                                 {/* Drop Placeholder if section is empty and being hovered */}
                                 {section.questions.length === 0 && (
                                     <div className="w-full py-8 border-2 border-dashed border-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400 bg-gray-50/30 transition-colors hover:bg-gray-50">
-                                        <div className="p-3 bg-white rounded-full shadow-sm mb-2">
+                                        <div className="p-3 bg-white rounded-full mb-2">
                                             <Plus className="w-4 h-4 text-gray-400" />
                                         </div>
                                         <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Drop questions here</p>
                                     </div>
                                 )}
 
-                                {/* Add Question Button */}
-                                <button
-                                    onClick={() => {
-                                        const newQuestion: Question = {
-                                            id: `q-${Date.now()}`,
-                                            type: "short-text",
-                                            icon: getIconForType("short-text"),
-                                            text: "",
-                                            required: false,
-                                            hasLogic: false,
-                                            conditions: [],
-                                            logicOperator: "any",
-                                        };
-                                        setSections(sections.map(s =>
-                                            s.id === section.id
-                                                ? { ...s, questions: [...s.questions, newQuestion] }
-                                                : s
-                                        ));
-                                    }}
-                                    className="w-full py-3 border border-dashed border-gray-200 rounded-xl hover:border-gray-400 hover:bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-black transition-all flex items-center justify-center gap-2 mt-4"
-                                >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    Add question manually
-                                </button>
                             </DroppableSection>
                         ))}
                     </div>
@@ -671,7 +615,7 @@ export function FormCanvas({
 
                 {/* Thank You Page */}
                 {showThankYouPage && (
-                    <div className="bg-white rounded-2xl border-transparent shadow-sm hover:shadow-lg hover:border-gray-50 p-8 transition-all group mt-8">
+                    <div className="bg-white rounded-2xl border border-border hover:border-foreground p-8 transition-all group mt-8">
                         <div className="flex items-start justify-between mb-6">
                             <div className="flex items-center gap-3">
                                 <div className="p-2.5 bg-gray-900 rounded-xl text-white">
@@ -690,37 +634,27 @@ export function FormCanvas({
                             </button>
                         </div>
                         <div className="space-y-4 ml-14">
-                            <div className="flex items-center gap-2 group/ty-title-edit">
+                            <div className="flex max-w-full items-center gap-2 group/ty-title-edit">
                                 <input
                                     type="text"
                                     placeholder="Thank you message"
-                                    className="flex-1 min-w-0 text-2xl font-bold bg-transparent border-none p-0 placeholder:text-gray-200 outline-none focus:ring-0 text-gray-900"
+                                    className="w-auto max-w-full flex-none text-2xl font-bold bg-transparent border-none p-0 placeholder:text-gray-200 outline-none focus:ring-0 text-gray-900 [field-sizing:content]"
                                     defaultValue="Thank you for applying!"
                                 />
                                 <Pencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover/ty-title-edit:opacity-100 transition-opacity flex-shrink-0" />
                             </div>
-                            <div className="relative group/ty-msg-edit">
+                            <div className="flex max-w-full items-start gap-2 group/ty-msg-edit">
                                 <textarea
                                     placeholder="Add a closing message..."
-                                    className="w-full min-h-[60px] bg-transparent border-none p-0 placeholder:text-gray-300 outline-none resize-none text-sm font-medium leading-relaxed text-gray-600"
+                                    className="w-auto max-w-full min-h-[60px] flex-none bg-transparent border-none p-0 placeholder:text-gray-300 outline-none resize-none text-sm font-medium leading-relaxed text-gray-600 [field-sizing:content]"
                                     defaultValue="We'll review your application and get back to you soon."
                                 />
-                                <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/ty-msg-edit:opacity-100 transition-opacity absolute top-0 right-0" />
+                                <Pencil className="w-3 h-3 text-gray-300 opacity-0 group-hover/ty-msg-edit:opacity-100 transition-opacity mt-1 flex-shrink-0" />
                             </div>
                         </div>
                     </div>
                 )}
 
-                {!showThankYouPage && (
-                    <div className="flex justify-center pt-8">
-                        <button
-                            onClick={() => setShowThankYouPage(true)}
-                            className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black transition-colors flex items-center gap-2"
-                        >
-                            <Plus className="w-3 h-3" /> Add thank you page
-                        </button>
-                    </div>
-                )}
             </div>
 
             <QuestionSettingsModal

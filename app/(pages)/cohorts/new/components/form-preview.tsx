@@ -129,7 +129,7 @@ export function FormPreview({ className, sections, showCoverPage, showThankYouPa
                             onClick={() => setViewMode("desktop")}
                             className={cn(
                                 "p-1.5 rounded transition-colors",
-                                viewMode === "desktop" ? "bg-white shadow-sm" : "hover:bg-gray-200"
+                                viewMode === "desktop" ? "bg-white" : "hover:bg-gray-200"
                             )}
                         >
                             <Monitor className="w-3.5 h-3.5 text-gray-600" />
@@ -138,7 +138,7 @@ export function FormPreview({ className, sections, showCoverPage, showThankYouPa
                             onClick={() => setViewMode("mobile")}
                             className={cn(
                                 "p-1.5 rounded transition-colors",
-                                viewMode === "mobile" ? "bg-white shadow-sm" : "hover:bg-gray-200"
+                                viewMode === "mobile" ? "bg-white" : "hover:bg-gray-200"
                             )}
                         >
                             <Smartphone className="w-3.5 h-3.5 text-gray-600" />
@@ -152,8 +152,8 @@ export function FormPreview({ className, sections, showCoverPage, showThankYouPa
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto bg-gray-50">
                 <div className={cn(
-                    "mx-auto bg-white shadow-lg min-h-full transition-all duration-300",
-                    viewMode === "mobile" ? "max-w-[375px] min-h-[calc(100%-2rem)] my-4 rounded-[30px] border-[8px] border-gray-900 shadow-xl overflow-hidden" : "max-w-3xl min-h-full bg-white shadow-sm"
+                    "mx-auto bg-white min-h-full transition-all duration-300",
+                    viewMode === "mobile" ? "max-w-[375px] min-h-[calc(100%-2rem)] my-4 rounded-[30px] border-[8px] border-gray-900 overflow-hidden" : "max-w-3xl min-h-full bg-white"
                 )}>
                     <div className="p-8 space-y-12">
                         {/* Cover Page Section */}
@@ -189,11 +189,11 @@ export function FormPreview({ className, sections, showCoverPage, showThankYouPa
 
                             return (
                                 <div key={section.id} className="space-y-6">
-                                    <div className="space-y-2">
-                                        <h2 className="text-xl font-bold text-gray-900">
+                                    <div className="flex flex-col items-start gap-2">
+                                        <h2 className="block text-xl font-bold text-gray-900">
                                             {section.title}
                                         </h2>
-                                        <p className="text-gray-600 text-sm">
+                                        <p className="block text-gray-600 text-sm">
                                             {section.description}
                                         </p>
                                     </div>
@@ -376,8 +376,7 @@ export function FormPreview({ className, sections, showCoverPage, showThankYouPa
                                                                 <select
                                                                     value={value}
                                                                     onChange={(e) => updateResponse(question.id, e.target.value)}
-                                                                    className={cn(commonInputClasses, "appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em]")}
-                                                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
+                                                                    className={cn(commonInputClasses, "appearance-none")}
                                                                 >
                                                                     <option value="">Select an option...</option>
                                                                     {(question.options || []).map((option, idx) => (

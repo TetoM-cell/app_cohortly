@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function WizardSkeleton() {
     return (
-        <div className="min-h-screen bg-[#FBFCFD] pb-32">
+        <div className="min-h-screen bg-background pb-32">
             {/* Header Content Skeleton */}
             <div className="bg-white border-b border-gray-100">
                 <div className="max-w-5xl mx-auto px-8 py-10">

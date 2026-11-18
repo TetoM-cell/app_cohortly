@@ -443,8 +443,8 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
                                     <p className="text-sm text-gray-500 mt-0.5">Share this link with external judges to evaluate without an account.</p>
                                 </div>
                             </div>
-                            <Button 
-                                variant="outline" 
+                            <Button
+                                variant="outline"
                                 size="sm"
                                 className="h-8 gap-2 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800"
                                 onClick={() => {
@@ -742,7 +742,7 @@ export function CohortSettingsSheet({ open, onOpenChange, program, onRefresh }: 
                             </div>
 
                             <div className="space-y-3">
-                                <label className="text-[13px] font-bold uppercase tracking-wider text-gray-400">
+                                <label className="text-[13px] font-bold uppercase tracking-wider text-gray-400 focus:ring-0">
                                     Custom Landing Page URL
                                 </label>
                                 <div className="flex items-center">

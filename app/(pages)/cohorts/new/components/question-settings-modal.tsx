@@ -2,13 +2,12 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { X, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
+    Drawer,
+    DrawerContent,
+    DrawerTitle,
+} from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +20,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { Question, Section } from "./form-builder";
 
 interface Condition {
@@ -176,53 +176,42 @@ export function QuestionSettingsModal({
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent
-                className="sm:max-w-[600px] w-full max-h-[90vh] bg-white border-0 shadow-2xl rounded-2xl overflow-hidden"
-                wrapperClassName="flex flex-col p-0 h-full max-h-[90vh] overflow-hidden"
+        <Drawer direction="right" open={open} onOpenChange={onOpenChange}>
+            <DrawerContent
+                data-settings-drawer
+                overlayClassName="backdrop-blur-[2px]"
+                className="inset-y-0 right-3 mr-0 h-screen max-h-screen items-stretch rounded-xl !font-sans"
             >
                 <div className="p-6 flex-shrink-0 border-b border-gray-100">
                     <div className="flex items-center justify-between">
                         <div>
-                             <DialogTitle className="text-xl font-bold text-gray-900">Component Settings</DialogTitle>
-                            <p className="text-sm text-gray-500 mt-1 font-medium">Configure properties for this field.</p>
+                             <DrawerTitle className="font-playfair text-xl font-semibold tracking-tight text-foreground">Component Settings</DrawerTitle>
+                            <p className="mt-1 text-xs font-sans text-muted-foreground">Configure properties for this field.</p>
                         </div>
                     </div>
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <div className="px-6 py-4 flex-shrink-0 border-b border-gray-100">
-                        <TabsList className="w-full h-12 p-1 bg-gray-50/80 rounded-xl gap-1">
-                            <TabsTrigger
-                                value="general"
-                                className="flex-1 text-xs font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm rounded-lg transition-all h-full"
-                            >
+                    <div className="px-6 py-4 flex-shrink-0">
+                        <TabsList className="gap-2">
+                            <TabsTrigger value="general">
                                 General
                             </TabsTrigger>
                             {isChoiceType && (
-                                <TabsTrigger
-                                    value="options"
-                                    className="flex-1 text-xs font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm rounded-lg transition-all h-full"
-                                >
+                                <TabsTrigger value="options">
                                     Options
                                 </TabsTrigger>
                             )}
-                            <TabsTrigger
-                                value="validation"
-                                className="flex-1 text-xs font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm rounded-lg transition-all h-full"
-                            >
+                            <TabsTrigger value="validation">
                                 Validation
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="logic"
-                                className="flex-1 text-xs font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm rounded-lg transition-all h-full"
-                            >
+                            <TabsTrigger value="logic">
                                 Logic
                             </TabsTrigger>
                         </TabsList>
                     </div>
 
-                    <ScrollArea className="flex-1 px-6 py-4 bg-white" style={{ maxHeight: 'calc(90vh - 250px)' }}>
+                    <ScrollArea className="flex-1 px-6 py-4">
                         {/* General Tab */}
                         <TabsContent value="general" className="space-y-6 mt-0 focus-visible:ring-0 focus-visible:outline-none pb-4">
                             <div className="space-y-3">
@@ -259,15 +248,12 @@ export function QuestionSettingsModal({
                                         Applicants cannot submit without answering
                                     </p>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={required}
-                                        onChange={(e) => setRequired(e.target.checked)}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-10 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black transition-colors duration-200"></div>
-                                </label>
+                                <Switch
+                                    checked={required}
+                                    onCheckedChange={setRequired}
+                                    aria-label="Required field"
+                                    className="data-[state=checked]:bg-[var(--wizard-completed-border)]"
+                                />
                             </div>
                         </TabsContent>
 
@@ -384,7 +370,7 @@ export function QuestionSettingsModal({
                                         <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                                             <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Show if</span>
                                             <Select value={logicOperator} onValueChange={(val) => setLogicOperator(val as "all" | "any")}>
-                                                <SelectTrigger className="w-24 h-8 text-xs font-bold bg-white border-transparent shadow-sm rounded-lg focus:ring-0">
+                                                <SelectTrigger className="w-24 h-8 text-xs font-bold bg-white border-transparent rounded-lg focus:ring-0">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -399,7 +385,7 @@ export function QuestionSettingsModal({
                                             {conditions.map((condition, index) => (
                                                 <div
                                                     key={condition.id}
-                                                    className="p-3 border border-gray-100 rounded-xl bg-white space-y-2 shadow-sm"
+                                                    className="p-3 border border-gray-100 rounded-xl bg-white space-y-2"
                                                 >
                                                     <div className="flex items-start gap-2">
                                                         <div className="flex-1 flex gap-2">
@@ -503,15 +489,15 @@ export function QuestionSettingsModal({
                     </ScrollArea>
                 </Tabs>
 
-                <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-white flex-shrink-0">
-                    <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-gray-500 hover:text-black">
+                <div className="px-6 py-2 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
                         Cancel
                     </Button>
-                    <Button onClick={handleSave} className="bg-black hover:bg-gray-800 text-white rounded-xl px-6 py-2 h-10 text-sm font-bold shadow-lg shadow-gray-200">
+                    <Button onClick={handleSave}>
                         Save Changes
                     </Button>
                 </div>
-            </DialogContent>
-        </Dialog >
+            </DrawerContent>
+        </Drawer>
     );
 }

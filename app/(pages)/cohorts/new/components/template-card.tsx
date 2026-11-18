@@ -14,7 +14,7 @@ interface TemplateCardProps {
 
 export function TemplateCard({ title, description, icon, onSelect }: TemplateCardProps) {
     return (
-        <div className="min-w-[280px] bg-white border border-gray-100 rounded-xl p-6 flex flex-col gap-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 group">
+        <div className="min-w-[280px] bg-white border border-gray-100 rounded-xl p-6 flex flex-col gap-4 transition-all duration-300 group">
             <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400 group-hover:text-black group-hover:bg-gray-100 transition-colors">
                 {icon}
             </div>

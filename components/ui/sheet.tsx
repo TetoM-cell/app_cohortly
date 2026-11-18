@@ -49,9 +49,11 @@ function SheetContent({
   className,
   children,
   side = "right",
+  showClose = true,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
+  showClose?: boolean
 }) {
   return (
     <SheetPortal>
@@ -74,10 +76,12 @@ function SheetContent({
       >
         <ScalingWrapper className="flex-1 flex flex-col h-full w-full min-h-0 relative">
           {children}
-          <SheetPrimitive.Close className="ring-offset-background data-[state=open]:bg-secondary absolute top-4 right-4 rounded-full opacity-70 transition-opacity hover:opacity-100 hover:bg-gray-100 cursor-pointer p-2 z-50">
-            <XIcon className="size-5" />
-            <span className="sr-only">Close</span>
-          </SheetPrimitive.Close>
+          {showClose && (
+            <SheetPrimitive.Close className="ring-offset-background data-[state=open]:bg-secondary absolute top-4 right-4 rounded-full opacity-70 transition-opacity hover:opacity-100 hover:bg-gray-100 cursor-pointer p-2 z-50">
+              <XIcon className="size-5" />
+              <span className="sr-only">Close</span>
+            </SheetPrimitive.Close>
+          )}
         </ScalingWrapper>
       </SheetPrimitive.Content>
     </SheetPortal>

@@ -31,12 +31,12 @@ function PopoverContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          "bg-popover text-popover-foreground z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border border-gray-300 outline-hidden overflow-hidden",
+          "bg-popover text-popover-foreground z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border border-gray-300 outline-hidden overflow-hidden p-4",
           className
         )}
         {...props}
       >
-        <ScalingWrapper className="h-full w-full p-4">
+        <ScalingWrapper className="h-full w-full">
           {props.children}
         </ScalingWrapper>
       </PopoverPrimitive.Content>
